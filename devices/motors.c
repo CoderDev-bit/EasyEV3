@@ -78,6 +78,52 @@ void turn_in_place(int speed, int degrees) {
     Sleep(1000);
 }
 
+// Pivot turn: one wheel moves, the other stays still
+// direction: 1 = pivot around left (right motor moves), -1 = pivot around right
+void pivot_turn(int speed, int degrees, int direction) {
+    if (direction == 1) {
+        // Pivot around left wheel — right wheel moves
+        set_tacho_speed_sp(right_motor, speed);
+        set_tacho_position_sp(right_motor, degrees);
+        set_tacho_command_inx(right_motor, TACHO_RUN_TO_REL_POS);
+    } else if (direction == -1) {
+        // Pivot around right wheel — left wheel moves
+        set_tacho_speed_sp(left_motor, speed);
+        set_tacho_position_sp(left_motor, degrees);
+        set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
+    } else {
+        printf("Invalid pivot direction (use 1 or -1).\n");
+        return;
+    }
+
+    Sleep(1000);
+}
+
+// Arc turn: both motors move forward but at different speeds
+// outer_speed = speed of outer wheel
+// ratio = 0 to 1 (inner wheel speed = outer_speed * ratio)
+// duration_ms = how long to run
+void arc_turn(int outer_speed, float ratio, int duration_ms) {
+    if (ratio < 0 || ratio > 1) {
+        printf("Invalid arc ratio (must be between 0 and 1).\n");
+        return;
+    }
+
+    int inner_speed = (int)(outer_speed * ratio);
+
+    set_tacho_speed_sp(left_motor, outer_speed);
+    set_tacho_speed_sp(right_motor, inner_speed);
+
+    set_tacho_time_sp(left_motor, duration_ms);
+    set_tacho_time_sp(right_motor, duration_ms);
+
+    set_tacho_command_inx(left_motor, TACHO_RUN_TIMED);
+    set_tacho_command_inx(right_motor, TACHO_RUN_TIMED);
+
+    Sleep(duration_ms + 200);
+}
+
+
 // Display stats
 void print_motor_stats() {
     int posL, posR, speedL, speedR;
@@ -112,9 +158,22 @@ int main() {
     turn_in_place(200, 180);
     print_motor_stats();
 
+    // 🔁 Pivot turn: pivot around right wheel
+    pivot_turn(200, 180, -1);
+    print_motor_stats();
+
+    // 🔁 Pivot turn: pivot around left wheel
+    pivot_turn(200, 180, 1);
+    print_motor_stats();
+
+    // 🔃 Arc turn: smooth left curve
+    arc_turn(300, 0.5, 2000);
+    print_motor_stats();
+
     stop_motors();
     ev3_uninit();
     printf("Done.\n");
 
     return 0;
 }
+
