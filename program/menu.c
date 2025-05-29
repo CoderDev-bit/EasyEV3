@@ -28,14 +28,17 @@ void start_mode_b();
 void (*mode_functions[])(void) = {start_mode_a, start_mode_b};
 
 void display_menu(int selected_index) {
-    printf("\n=== Select Robot Mode ===\n");
+    clear_console();
+    printf("=== Select Robot Mode ===\n\n");
     for (int i = 0; i < mode_count; i++) {
         if (i == selected_index)
             printf("> %s <\n", modes[i]);
         else
             printf("  %s\n", modes[i]);
     }
+    printf("\nUse UP/DOWN to choose, CENTER to select, BACK to exit.\n");
 }
+
 
 void on_up_pressed(int* selected_index) {
     *selected_index = (*selected_index - 1 + mode_count) % mode_count;
@@ -66,6 +69,11 @@ void start_mode_a() {
 void start_mode_b() {
     printf("[Robot is running in Mode B...]\n");
     // Add robot behavior here
+}
+
+void clear_console() {
+    // ANSI escape code to clear screen and move cursor to top-left
+    printf("\033[2J\033[H");
 }
 
 int main(void) {
