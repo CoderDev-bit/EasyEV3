@@ -7,7 +7,9 @@
 // Include sensor_methods.c directly for this test
 #include "sensor_methods.c"
 
-int main() {
+int all_sensor_tests();
+
+int all_sensor_tests() {
     printf("Initializing EV3 system...\n");
     if (ev3_init() < 1) {
         printf("EV3 init failed.\n");
@@ -100,4 +102,8 @@ int main() {
     ev3_uninit();
     printf("\nAll tests complete.\n");
     return 0;
+}
+
+int main() {
+    return all_sensor_tests();
 }

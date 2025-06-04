@@ -122,6 +122,11 @@ void turn_in_place(int speed, int degrees) {
     Sleep(1000);
 }
 
+// Rotate the robot 360 degrees in place using tank turn
+void rotate_robot_360(int speed) {
+    turn_in_place(speed, 360);
+}
+
 void pivot_turn(int speed, int degrees, int direction) {
     if (direction == 1) {
         set_tacho_speed_sp(right_motor, speed);
