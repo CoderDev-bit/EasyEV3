@@ -105,5 +105,7 @@ int all_sensor_tests() {
 }
 
 int main() {
-    return all_sensor_tests();
+    rotate_robot_360();
+    return 0;
+    //all_sensor_tests();
 }
