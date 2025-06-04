@@ -16,7 +16,8 @@ Sensor Information:
 | Color | 
 | Ultra | 
 
-
+*Because of low gyro accuracy, the cup must a a certain degrees/distance apart. Calculate this, else, two objects will be 
+treated as one or etc.
 
 Ideas:
 1. Run async
@@ -25,3 +26,5 @@ Ideas:
 4. Stored Map
 5. Database as storage
 6. Playing car sounds or game SFX in a mode
+7. Mode A, if succesfully finished course, it can go back without even "thinking" (memory)
+8. Intelligent and efficient turning (arc turns AND reverse w/ neural network)
