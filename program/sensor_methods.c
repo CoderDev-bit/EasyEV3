@@ -112,7 +112,7 @@ void move_for_degrees(int speed, int degrees) {
     Sleep(1000);
 }
 
-void turn_in_place(int speed, int degrees) {
+void tank_turn(int speed, int degrees) {
     set_tacho_speed_sp(left_motor, speed);
     set_tacho_speed_sp(right_motor, -speed);
     set_tacho_position_sp(left_motor, degrees);
