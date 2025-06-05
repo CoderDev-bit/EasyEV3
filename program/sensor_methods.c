@@ -11,8 +11,8 @@
 
 #define Sleep(ms) usleep((ms) * 1000)
 
-#define WHEEL_DIAMETER_MM 56
-#define WHEEL_BASE_MM 120
+#define WHEEL_DIAMETER_MM 54.5
+#define WHEEL_BASE_MM -1
 
 // Should gyro be automatically reset when initializing?
 static bool gyro_auto_reset = true;
