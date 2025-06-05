@@ -9,6 +9,8 @@
 
 int all_sensor_tests();
 
+void rotate_robot_360();
+
 int all_sensor_tests() {
     printf("Initializing EV3 system...\n");
     if (ev3_init() < 1) {
@@ -35,7 +37,7 @@ int all_sensor_tests() {
         printf("Motors initialized.\n");
         move_for_time(300, 1000);
         move_for_degrees(300, 360);
-        turn_in_place(200, 180);
+        tank_turn(200, 180);
         pivot_turn(200, 180, -1);
         pivot_turn(200, 180, 1);
         arc_turn(300, 0.5, 1000);
@@ -102,6 +104,24 @@ int all_sensor_tests() {
     ev3_uninit();
     printf("\nAll tests complete.\n");
     return 0;
+}
+
+void rotate_robot_360() {
+    printf("Initializing EV3 for rotation test...\n");
+    if (ev3_init() < 1) {
+        printf("EV3 init failed.\n");
+        return;
+    }
+    if (!init_motors()) {
+        printf("Failed to initialize motors.\n");
+        ev3_uninit();
+        return;
+    }
+    printf("Rotating robot 360 degrees...\n");
+    tank_turn(100, 360);
+    stop_motors();
+    ev3_uninit();
+    printf("Rotation complete.\n");
 }
 
 int main() {
