@@ -10,7 +10,6 @@
 #include "ev3_tacho.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
-
 // Geometry of the robot (millimeters)
 // Wheel diameter measured across tire: 54.5 mm
 #define WHEEL_DIAMETER_MM 54.5
