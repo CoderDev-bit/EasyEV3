@@ -74,6 +74,38 @@ static int robot_to_pivot_wheel_deg(int robot_deg) {
     return (int)((double)robot_deg * 2 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
 }
 
+// Geometry of the robot (millimeters)
+// Wheel diameter measured across tire: 54.5 mm
+#define WHEEL_DIAMETER_MM 54.5
+// Distance from axle to the centre of the ball bearing pivot: 104 mm
+#define WHEEL_BASE_MM 104
+
+// Should gyro be automatically reset when initializing?
+static bool gyro_auto_reset = true;
+
+void set_gyro_auto_reset(bool enable) {
+    gyro_auto_reset = enable;
+}
+
+static void reset_gyro(uint8_t sn_gyro) {
+    set_sensor_mode(sn_gyro, "GYRO-RATE");
+    Sleep(100);
+    set_sensor_mode(sn_gyro, "GYRO-ANG");
+    Sleep(100);
+}
+
+// Convert desired robot rotation to wheel rotation for a tank turn
+static int robot_to_tank_wheel_deg(int robot_deg) {
+    // wheel_degrees = robot_deg * wheel_base / wheel_diameter
+    return (int)((double)robot_deg * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
+}
+
+// Convert desired robot rotation when pivoting about one wheel
+static int robot_to_pivot_wheel_deg(int robot_deg) {
+    // wheel_degrees = robot_deg * 2 * wheel_base / wheel_diameter
+    return (int)((double)robot_deg * 2 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
+}
+
 // ---- BUTTON METHODS ----
 const char* get_button_name(uint8_t keys) {
     if (keys & EV3_KEY_UP) return "UP";
