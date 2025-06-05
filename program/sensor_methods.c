@@ -1,13 +1,29 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include "ev3.h"
 #include "ev3_port.h"
 #include "ev3_sensor.h"
+
 #include "ev3_tacho.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
+
+// Should gyro be automatically reset when initializing?
+static bool gyro_auto_reset = true;
+
+void set_gyro_auto_reset(bool enable) {
+    gyro_auto_reset = enable;
+}
+
+static void reset_gyro(uint8_t sn_gyro) {
+    set_sensor_mode(sn_gyro, "GYRO-RATE");
+    Sleep(100);
+    set_sensor_mode(sn_gyro, "GYRO-ANG");
+    Sleep(100);
+}
 
 // ---- BUTTON METHODS ----
 const char* get_button_name(uint8_t keys) {
@@ -39,11 +55,8 @@ void read_color_sensors(uint8_t sn1, uint8_t sn2, int* val1, int* val2) {
 // ---- GYRO SENSOR METHODS ----
 bool init_gyro(uint8_t* sn_gyro, bool reset) {
     if (ev3_search_sensor(LEGO_EV3_GYRO, sn_gyro, 0)) {
-        if (reset) {
-            set_sensor_mode(*sn_gyro, "GYRO-RATE");
-            Sleep(100);
-            set_sensor_mode(*sn_gyro, "GYRO-ANG");
-            Sleep(100);
+        if (reset || gyro_auto_reset) {
+            reset_gyro(*sn_gyro);
         }
         return true;
     }
@@ -109,17 +122,19 @@ void move_for_degrees(int speed, int degrees) {
     set_tacho_position_sp(right_motor, degrees);
     set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     set_tacho_command_inx(right_motor, TACHO_RUN_TO_REL_POS);
-    Sleep(1000);
+    int wait = (speed != 0) ? (abs(degrees) * 1000 / abs(speed)) + 200 : 1000;
+    Sleep(wait);
 }
 
-void turn_in_place(int speed, int degrees) {
+void tank_turn(int speed, int degrees) {
     set_tacho_speed_sp(left_motor, speed);
     set_tacho_speed_sp(right_motor, -speed);
     set_tacho_position_sp(left_motor, degrees);
     set_tacho_position_sp(right_motor, -degrees);
     set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     set_tacho_command_inx(right_motor, TACHO_RUN_TO_REL_POS);
-    Sleep(1000);
+    int wait = (speed != 0) ? (abs(degrees) * 1000 / abs(speed)) + 200 : 1000;
+    Sleep(wait);
 }
 
 
@@ -133,7 +148,8 @@ void pivot_turn(int speed, int degrees, int direction) {
         set_tacho_position_sp(left_motor, degrees);
         set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     }
-    Sleep(1000);
+    int wait = (speed != 0) ? (abs(degrees) * 1000 / abs(speed)) + 200 : 1000;
+    Sleep(wait);
 }
 
 void arc_turn(int outer_speed, float ratio, int duration_ms) {
