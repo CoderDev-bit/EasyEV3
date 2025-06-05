@@ -10,9 +10,11 @@
 #include "ev3_tacho.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
-
+// Geometry of the robot (millimeters)
+// Wheel diameter measured across tire: 54.5 mm
 #define WHEEL_DIAMETER_MM 54.5
-#define WHEEL_BASE_MM -1
+// Distance from axle to the centre of the ball bearing pivot: 104 mm
+#define WHEEL_BASE_MM 104
 
 // Should gyro be automatically reset when initializing?
 static bool gyro_auto_reset = true;
@@ -28,6 +30,7 @@ static void reset_gyro(uint8_t sn_gyro) {
     Sleep(100);
 }
 
+// Convert desired robot rotation to wheel rotation for a tank turn
 static int robot_to_tank_wheel_deg(int robot_deg) {
     // wheel_degrees = robot_deg * wheel_base / wheel_diameter
     return (int)((double)robot_deg * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
@@ -166,7 +169,6 @@ void pivot_turn(int speed, int degrees, int direction) {
         set_tacho_position_sp(left_motor, wheel_deg);
         set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     }
-  
     int wait = (speed != 0) ? (abs(wheel_deg) * 1000 / s) + 500 : 1000;
     Sleep(wait);
 }
