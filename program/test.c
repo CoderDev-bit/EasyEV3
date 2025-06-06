@@ -33,7 +33,7 @@ int main() {
         printf("Motors initialized.\n");
         move_for_time(300, 1000);
         move_for_degrees(300, 360);
-        turn_in_place(200, 180);
+        tank_turn(200, 360);
         pivot_turn(200, 180, -1);
         pivot_turn(200, 180, 1);
         arc_turn(300, 0.5, 1000);
