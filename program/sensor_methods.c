@@ -8,7 +8,33 @@
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
 
-#define Sleep(ms) usleep((ms) * 1000)
+#include "sensor_methods.h"
+
+// Should gyro be automatically reset when initializing?
+static bool gyro_auto_reset = true;
+
+void set_gyro_auto_reset(bool enable) {
+    gyro_auto_reset = enable;
+}
+
+static void reset_gyro(uint8_t sn_gyro) {
+    set_sensor_mode(sn_gyro, "GYRO-RATE");
+    Sleep(100);
+    set_sensor_mode(sn_gyro, "GYRO-ANG");
+    Sleep(100);
+}
+
+// Convert desired robot rotation to wheel rotation for a tank turn
+int robot_to_tank_wheel_deg(int robot_deg) {
+    // wheel_degrees = robot_deg * 2 * wheel_base / wheel_diameter
+    return (int)((double)robot_deg * 2 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
+}
+
+// Convert desired robot rotation when pivoting about one wheel
+int robot_to_pivot_wheel_deg(int robot_deg) {
+    // wheel_degrees = robot_deg * 4 * wheel_base / wheel_diameter
+    return (int)((double)robot_deg * 4 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
+}
 
 // Geometry of the robot (millimeters)
 // Wheel diameter measured across tire: 54.5 mm
@@ -154,8 +180,9 @@ void move_for_degrees(int speed, int degrees) {
 void tank_turn(int speed, int degrees) {
     int wheel_deg = robot_to_tank_wheel_deg(degrees);
     int s = abs(speed);
+    if (wheel_deg < 0) s = -s;
     set_tacho_speed_sp(left_motor, s);
-    set_tacho_speed_sp(right_motor, s);
+    set_tacho_speed_sp(right_motor, -s);
     set_tacho_position_sp(left_motor, wheel_deg);
     set_tacho_position_sp(right_motor, -wheel_deg);
     set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
@@ -167,17 +194,17 @@ void tank_turn(int speed, int degrees) {
 void pivot_turn(int speed, int degrees, int direction) {
     int wheel_deg = robot_to_pivot_wheel_deg(degrees);
     int s = abs(speed);
-
     if (direction == 1) {
-        set_tacho_speed_sp(right_motor, (wheel_deg >= 0) ? s : -s);
+        if (wheel_deg < 0) s = -s;
+        set_tacho_speed_sp(right_motor, s);
         set_tacho_position_sp(right_motor, wheel_deg);
         set_tacho_command_inx(right_motor, TACHO_RUN_TO_REL_POS);
     } else if (direction == -1) {
-        set_tacho_speed_sp(left_motor, (wheel_deg >= 0) ? s : -s);
+        if (wheel_deg < 0) s = -s;
+        set_tacho_speed_sp(left_motor, s);
         set_tacho_position_sp(left_motor, wheel_deg);
         set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     }
-
     int wait = (speed != 0) ? (abs(wheel_deg) * 1000 / s) + 500 : 1000;
     Sleep(wait);
 }

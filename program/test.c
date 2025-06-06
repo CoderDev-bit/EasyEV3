@@ -5,8 +5,8 @@
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
 
-// Include sensor_methods.c directly for this test
-#include "sensor_methods.c"
+// Use the library functions from sensor_methods
+#include "sensor_methods.h"
 
 int all_sensor_tests();
 
@@ -17,6 +17,7 @@ void* tank_turn_thread(void* arg) {
     tank_turn(p->speed, p->degrees);
     return NULL;
 }
+
 void rotate_robot_360();
 
 int all_sensor_tests() {
@@ -155,7 +156,6 @@ void rotate_robot_360() {
     pthread_join(tid, NULL);
     printf("Rotating robot 360 degrees...\n");
     tank_turn(100, 360);
-
     stop_motors();
     ev3_uninit();
     printf("Rotation complete.\n");
