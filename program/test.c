@@ -154,6 +154,8 @@ void rotate_robot_360() {
     }
 
     pthread_join(tid, NULL);
+    printf("Rotating robot 360 degrees...\n");
+    tank_turn(100, 360);
     stop_motors();
     ev3_uninit();
     printf("Rotation complete.\n");
