@@ -6,73 +6,9 @@
 #include "ev3.h"
 #include "ev3_port.h"
 #include "ev3_sensor.h"
-
 #include "ev3_tacho.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
-// Geometry of the robot (millimeters)
-// Wheel diameter measured across tire: 54.5 mm
-#define WHEEL_DIAMETER_MM 54.5
-// Distance from axle to the centre of the ball bearing pivot: 104 mm
-#define WHEEL_BASE_MM 104
-
-// Should gyro be automatically reset when initializing?
-static bool gyro_auto_reset = true;
-
-void set_gyro_auto_reset(bool enable) {
-    gyro_auto_reset = enable;
-}
-
-static void reset_gyro(uint8_t sn_gyro) {
-    set_sensor_mode(sn_gyro, "GYRO-RATE");
-    Sleep(100);
-    set_sensor_mode(sn_gyro, "GYRO-ANG");
-    Sleep(100);
-}
-
-// Convert desired robot rotation to wheel rotation for a tank turn
-static int robot_to_tank_wheel_deg(int robot_deg) {
-    // wheel_degrees = robot_deg * wheel_base / wheel_diameter
-    return (int)((double)robot_deg * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
-}
-
-// Convert desired robot rotation when pivoting about one wheel
-static int robot_to_pivot_wheel_deg(int robot_deg) {
-    // wheel_degrees = robot_deg * 2 * wheel_base / wheel_diameter
-    return (int)((double)robot_deg * 2 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
-}
-
-// Geometry of the robot (millimeters)
-// Wheel diameter measured across tire: 54.5 mm
-#define WHEEL_DIAMETER_MM 54.5
-// Distance from axle to the centre of the ball bearing pivot: 104 mm
-#define WHEEL_BASE_MM 104
-
-// Should gyro be automatically reset when initializing?
-static bool gyro_auto_reset = true;
-
-void set_gyro_auto_reset(bool enable) {
-    gyro_auto_reset = enable;
-}
-
-static void reset_gyro(uint8_t sn_gyro) {
-    set_sensor_mode(sn_gyro, "GYRO-RATE");
-    Sleep(100);
-    set_sensor_mode(sn_gyro, "GYRO-ANG");
-    Sleep(100);
-}
-
-// Convert desired robot rotation to wheel rotation for a tank turn
-static int robot_to_tank_wheel_deg(int robot_deg) {
-    // wheel_degrees = robot_deg * wheel_base / wheel_diameter
-    return (int)((double)robot_deg * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
-}
-
-// Convert desired robot rotation when pivoting about one wheel
-static int robot_to_pivot_wheel_deg(int robot_deg) {
-    // wheel_degrees = robot_deg * 2 * wheel_base / wheel_diameter
-    return (int)((double)robot_deg * 2 * WHEEL_BASE_MM / WHEEL_DIAMETER_MM);
-}
 
 // Geometry of the robot (millimeters)
 // Wheel diameter measured across tire: 54.5 mm
@@ -128,9 +64,14 @@ const char* color[] = { "?", "BLACK", "BLUE", "GREEN", "YELLOW", "RED", "WHITE",
 #define COLOR_COUNT ((int)(sizeof(color) / sizeof(color[0])))
 
 void read_color_sensors(uint8_t sn1, uint8_t sn2, int* val1, int* val2) {
-    *val1 = 0; *val2 = 0;
-    if (!get_sensor_value(0, sn1, val1) || *val1 < 0 || *val1 >= COLOR_COUNT) *val1 = 0;
-    if (!get_sensor_value(0, sn2, val2) || *val2 < 0 || *val2 >= COLOR_COUNT) *val2 = 0;
+    *val1 = 0;
+    *val2 = 0;
+    if (!get_sensor_value(0, sn1, val1) || *val1 < 0 || *val1 >= COLOR_COUNT) {
+        *val1 = 0;
+    }
+    if (!get_sensor_value(0, sn2, val2) || *val2 < 0 || *val2 >= COLOR_COUNT) {
+        *val2 = 0;
+    }
 }
 
 // ---- GYRO SENSOR METHODS ----
@@ -175,12 +116,15 @@ bool init_motors() {
     int found = 0;
     for (int i = 0; i < DESC_LIMIT && found < 2; i++) {
         if (ev3_tacho[i].type_inx == LEGO_EV3_L_MOTOR) {
-            if (found == 0) left_motor = i;
-            else right_motor = i;
+            if (found == 0) {
+                left_motor = i;
+            } else {
+                right_motor = i;
+            }
             found++;
         }
     }
-    return found == 2;
+    return (found == 2);
 }
 
 void set_speed(int speed) {
@@ -220,10 +164,10 @@ void tank_turn(int speed, int degrees) {
     Sleep(wait);
 }
 
-
 void pivot_turn(int speed, int degrees, int direction) {
     int wheel_deg = robot_to_pivot_wheel_deg(degrees);
     int s = abs(speed);
+
     if (direction == 1) {
         set_tacho_speed_sp(right_motor, (wheel_deg >= 0) ? s : -s);
         set_tacho_position_sp(right_motor, wheel_deg);
@@ -233,6 +177,7 @@ void pivot_turn(int speed, int degrees, int direction) {
         set_tacho_position_sp(left_motor, wheel_deg);
         set_tacho_command_inx(left_motor, TACHO_RUN_TO_REL_POS);
     }
+
     int wait = (speed != 0) ? (abs(wheel_deg) * 1000 / s) + 500 : 1000;
     Sleep(wait);
 }
