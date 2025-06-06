@@ -1,26 +1,13 @@
 #include <stdio.h>
 #include <unistd.h>
-#include <pthread.h>
 #include "ev3.h"
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
 
-// Use the library functions from sensor_methods
-#include "sensor_methods.h"
+// Include sensor_methods.c directly for this test
+#include "sensor_methods.c"
 
-int all_sensor_tests();
-
-struct turn_params { int speed; int degrees; };
-
-void* tank_turn_thread(void* arg) {
-    struct turn_params* p = (struct turn_params*)arg;
-    tank_turn(p->speed, p->degrees);
-    return NULL;
-}
-
-void rotate_robot_360();
-
-int all_sensor_tests() {
+int main() {
     printf("Initializing EV3 system...\n");
     if (ev3_init() < 1) {
         printf("EV3 init failed.\n");
@@ -46,7 +33,7 @@ int all_sensor_tests() {
         printf("Motors initialized.\n");
         move_for_time(300, 1000);
         move_for_degrees(300, 360);
-        tank_turn(200, 180);
+        turn_in_place(200, 180);
         pivot_turn(200, 180, -1);
         pivot_turn(200, 180, 1);
         arc_turn(300, 0.5, 1000);
@@ -113,56 +100,4 @@ int all_sensor_tests() {
     ev3_uninit();
     printf("\nAll tests complete.\n");
     return 0;
-}
-
-void rotate_robot_360() {
-    printf("Initializing EV3 for rotation test...\n");
-    if (ev3_init() < 1) {
-        printf("EV3 init failed.\n");
-        return;
-    }
-    if (!init_motors()) {
-        printf("Failed to initialize motors.\n");
-        ev3_uninit();
-        return;
-    }
-
-    uint8_t sn_gyro = SENSOR__NONE_;
-    if (!init_gyro(&sn_gyro, true)) {
-        printf("Gyro init failed.\n");
-        ev3_uninit();
-        return;
-    }
-
-    int speed = 100;
-    int deg = 360;
-    int wheel_deg = robot_to_tank_wheel_deg(deg);
-    int wait_ms = (speed != 0) ? (abs(wheel_deg) * 1000 / abs(speed)) + 500 : 1000;
-
-    struct turn_params params = { speed, deg };
-    pthread_t tid;
-    pthread_create(&tid, NULL, tank_turn_thread, &params);
-
-    int elapsed = 0;
-    while (elapsed < wait_ms) {
-        int angle;
-        if (get_gyro_angle(sn_gyro, &angle)) {
-            printf("Gyro angle: %d\n", angle);
-        }
-        Sleep(200);
-        elapsed += 200;
-    }
-
-    pthread_join(tid, NULL);
-    printf("Rotating robot 360 degrees...\n");
-    tank_turn(100, 360);
-    stop_motors();
-    ev3_uninit();
-    printf("Rotation complete.\n");
-}
-
-int main() {
-    rotate_robot_360();
-    return 0;
-    //all_sensor_tests();
 }
