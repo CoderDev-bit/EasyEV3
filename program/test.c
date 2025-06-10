@@ -7,15 +7,7 @@
 // Include sensor_methods.c directly for this test
 #include "sensor_methods.c"
 
-int main() {
-    printf("Initializing EV3 system...\n");
-    if (ev3_init() < 1) {
-        printf("EV3 init failed.\n");
-        return 1;
-    }
-    ev3_sensor_init();
-    ev3_tacho_init();
-
+void test_everything() {
     // --- Test Buttons ---
     printf("\n--- Testing Buttons ---\nPress any button (BACK to skip)\n");
     while (1) {
@@ -33,7 +25,7 @@ int main() {
         printf("Motors initialized.\n");
         move_for_time(300, 1000);
         move_for_degrees(300, 360);
-        tank_turn(200, 360);
+        tank_turn(200, 180);
         pivot_turn(200, 180, -1);
         pivot_turn(200, 180, 1);
         arc_turn(300, 0.5, 1000);
@@ -96,8 +88,28 @@ int main() {
     } else {
         printf("Color sensors not found.\n");
     }
+}
+
+void rotate_robot_360() {
+    if (ev3_init() < 1) {
+        printf("EV3 init failed.\n");
+        return;
+    }
+    ev3_sensor_init();
+    ev3_tacho_init();
+
+    if (init_motors()) {
+        printf("Rotating robot 360 degrees using tank turn...\n");
+        tank_turn(200, 360);
+        stop_motors();
+    } else {
+        printf("Motor initialization failed.\n");
+    }
 
     ev3_uninit();
-    printf("\nAll tests complete.\n");
+}
+
+int main() {
+    rotate_robot_360();
     return 0;
 }
