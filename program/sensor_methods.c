@@ -9,7 +9,7 @@
 #include "ev3_tacho.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
-#define WHEEL_DIAMETER_MM 50
+#define WHEEL_DIAMETER_MM 57
 #define WHEEL_BASE_MM      104.0
 
 static bool gyro_auto_reset = true;

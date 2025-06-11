@@ -43,6 +43,7 @@ void test_color_sensors() {
     }
 }
 
+// --- Individual device testing methods ---
 void test_buttons() {
     printf("\n--- Testing Buttons ---\nPress any button (BACK to skip)\n");
     while (1) {
@@ -100,6 +101,7 @@ void test_everything() {
     test_color_sensors();
 }
 
+// --- Compound or complex actions ---
 void rotate_robot_360() {
     if (ev3_init() < 1) {
         printf("EV3 init failed.\n");
@@ -120,6 +122,6 @@ void rotate_robot_360() {
 }
 
 int main() {
-    rotate_robot_360();
+    test_gyro();
     return 0;
 }
