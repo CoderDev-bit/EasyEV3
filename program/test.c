@@ -3,69 +3,22 @@
 #include "ev3.h"
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
+#include "sensor_methods.c"  // Make sure this file is modularized as in prior refactor
 
-// Include sensor_methods.c directly for this test
-#include "sensor_methods.c"
+#define Sleep(ms) usleep((ms) * 1000)
 
-void test_everything() {
-    // --- Test Buttons ---
-    printf("\n--- Testing Buttons ---\nPress any button (BACK to skip)\n");
-    while (1) {
-        uint8_t keys = 0;
-        ev3_read_keys(&keys);
-        const char* name = get_button_name(keys);
-        if (name) printf("Detected: %s\n", name);
-        if (keys & EV3_KEY_BACK) break;
-        Sleep(200);
-    }
-
-    // --- Test Motors ---
-    printf("\n--- Testing Motors ---\n");
-    if (init_motors()) {
-        printf("Motors initialized.\n");
-        move_for_time(300, 1000);
-        move_for_degrees(300, 360);
-        tank_turn(200, 180);
-        pivot_turn(200, 180, -1);
-        pivot_turn(200, 180, 1);
-        arc_turn(300, 0.5, 1000);
-        print_motor_stats();
-        stop_motors();
-    } else {
-        printf("Failed to initialize motors.\n");
-    }
-
-    // --- Test Gyro ---
-    printf("\n--- Testing Gyro Sensor ---\n");
-    uint8_t sn_gyro = SENSOR__NONE_;
-    if (init_gyro(&sn_gyro, true)) {
-        for (int i = 0; i < 10; i++) {
-            int angle;
-            if (get_gyro_angle(sn_gyro, &angle)) {
-                printf("Angle: %d degrees\n", angle);
-            }
-            Sleep(300);
+// --- Helper Methods ---
+void wait_and_print_sensor(const char* label, bool (*read_fn)(uint8_t, int*), uint8_t sensor) {
+    for (int i = 0; i < 10; i++) {
+        int value;
+        if (read_fn(sensor, &value)) {
+            printf("%s: %d\n", label, value);
         }
-    } else {
-        printf("Gyro not found.\n");
+        Sleep(300);
     }
+}
 
-    // --- Test Ultrasonic ---
-    printf("\n--- Testing Ultrasonic Sensor ---\n");
-    uint8_t sn_us = SENSOR__NONE_;
-    if (init_ultrasonic(&sn_us)) {
-        for (int i = 0; i < 10; i++) {
-            int distance;
-            if (get_distance_mm(sn_us, &distance)) {
-                printf("Distance: %d mm\n", distance);
-            }
-            Sleep(300);
-        }
-    } else {
-        printf("Ultrasonic sensor not found.\n");
-    }
-
-    // --- Test Color Sensors ---
+void test_color_sensors() {
     printf("\n--- Testing Color Sensors ---\n");
     uint8_t sn1 = SENSOR__NONE_, sn2 = SENSOR__NONE_;
     int found = 0;
@@ -82,12 +35,69 @@ void test_everything() {
         for (int i = 0; i < 10; i++) {
             int v1, v2;
             read_color_sensors(sn1, sn2, &v1, &v2);
-            printf("Sensor1: %s, Sensor2: %s\n", color[v1], color[v2]);
+            printf("Sensor1: %s, Sensor2: %s\n", color_names[v1], color_names[v2]);
             Sleep(300);
         }
     } else {
         printf("Color sensors not found.\n");
     }
+}
+
+void test_buttons() {
+    printf("\n--- Testing Buttons ---\nPress any button (BACK to skip)\n");
+    while (1) {
+        uint8_t keys = 0;
+        ev3_read_keys(&keys);
+        const char* name = get_button_name(keys);
+        if (name) printf("Detected: %s\n", name);
+        if (keys & EV3_KEY_BACK) break;
+        Sleep(200);
+    }
+}
+
+void test_motors() {
+    printf("\n--- Testing Motors ---\n");
+    if (init_motors()) {
+        printf("Motors initialized.\n");
+        move_for_time(300, 1000);
+        move_for_degrees(300, 360);
+        tank_turn(200, 180);
+        pivot_turn(200, 180, -1);
+        pivot_turn(200, 180, 1);
+        arc_turn(300, 0.5, 1000);
+        print_motor_stats();
+        stop_motors();
+    } else {
+        printf("Failed to initialize motors.\n");
+    }
+}
+
+void test_gyro() {
+    printf("\n--- Testing Gyro Sensor ---\n");
+    uint8_t sn_gyro = SENSOR__NONE_;
+    if (init_gyro(&sn_gyro, true)) {
+        wait_and_print_sensor("Angle", get_gyro_angle, sn_gyro);
+    } else {
+        printf("Gyro not found.\n");
+    }
+}
+
+void test_ultrasonic() {
+    printf("\n--- Testing Ultrasonic Sensor ---\n");
+    uint8_t sn_us = SENSOR__NONE_;
+    if (init_ultrasonic(&sn_us)) {
+        wait_and_print_sensor("Distance", get_distance_mm, sn_us);
+    } else {
+        printf("Ultrasonic sensor not found.\n");
+    }
+}
+
+void test_everything() {
+    test_buttons();
+    test_motors();
+    test_gyro();
+    test_ultrasonic();
+    test_color_sensors();
 }
 
 void rotate_robot_360() {
