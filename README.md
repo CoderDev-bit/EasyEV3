@@ -12,12 +12,11 @@ Sensor Information:
 
 | Motor | Refresh Rate | Accuracy |
 | ----- | ------------ | -------- |
-| Gyro  | 
-| Color | 
-| Ultra | 
+| Gyro  | 3.           | 3.       |
+| Color | 3.           | 3.       |
+| Ultra | 3.           | 3.       |
 
-*Because of low gyro accuracy, the cup must a a certain degrees/distance apart. Calculate this, else, two objects will be 
-treated as one or etc.
+
 
 Ideas:
 1. Run async
