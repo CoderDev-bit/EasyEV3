@@ -7,10 +7,16 @@
 #include "ev3_port.h"
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
+#include "sensor_methods.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
 #define WHEEL_DIAMETER_MM 57
 #define WHEEL_BASE_MM      104.0
+
+const char* color_names[] = {
+    "?", "BLACK", "BLUE", "GREEN", "YELLOW", "RED", "WHITE", "BROWN"
+};
+const int COLOR_COUNT = sizeof(color_names) / sizeof(color_names[0]);
 
 static bool gyro_auto_reset = true;
 static uint8_t left_motor  = DESC_LIMIT;
@@ -72,22 +78,26 @@ bool is_button_pressed(uint8_t button_mask) {
     return (keys & button_mask) != 0;
 }
 
-// ---------- Color Sensor Methods ----------
-const char* color_names[] = {
-    "?", "BLACK", "BLUE", "GREEN", "YELLOW", "RED", "WHITE", "BROWN"
-};
-#define COLOR_COUNT ((int)(sizeof(color_names) / sizeof(color_names[0])))
+// ---------- Color Sensor Methods (Revised) ----------
+int init_all_color_sensors(uint8_t* sn_array, int max_sensors) {
+    int count = 0;
+    uint8_t sn;
+    int i = 0;
+    while (ev3_search_sensor(LEGO_EV3_COLOR, &sn, i++) && count < max_sensors) {
+        set_sensor_mode(sn, "COL-COLOR");
+        sn_array[count++] = sn;
+    }
+    return count;
+}
 
-void read_color_sensors(uint8_t sn1, uint8_t sn2, int* val1, int* val2) {
-    int values[2] = {0, 0};
-    uint8_t sns[2] = {sn1, sn2};
-    for (int i = 0; i < 2; i++) {
-        if (!get_sensor_value(0, sns[i], &values[i]) || values[i] < 0 || values[i] >= COLOR_COUNT) {
-            values[i] = 0;
+bool get_color_value(uint8_t sn_color, int* value) {
+    if (get_sensor_value(0, sn_color, value)) {
+        if (*value >= 0 && *value < COLOR_COUNT) {
+            return true;
         }
     }
-    *val1 = values[0];
-    *val2 = values[1];
+    *value = 0;
+    return false;
 }
 
 // ---------- Ultrasonic Sensor Methods ----------
@@ -103,18 +113,15 @@ bool get_distance_mm(uint8_t sn_us, int* distance_mm) {
     return get_sensor_value(0, sn_us, distance_mm);
 }
 
-// ---------- Motor Methods ----------
+// ---------- Motor Methods (Revised init_motors) ----------
 bool init_motors(void) {
-    ev3_tacho_init();
-    int found = 0;
-    for (int i = 0; i < DESC_LIMIT && found < 2; i++) {
-        if (ev3_tacho[i].type_inx == LEGO_EV3_L_MOTOR) {
-            if (found == 0) left_motor = i;
-            else right_motor = i;
-            found++;
+    if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &left_motor, 0)) {
+        if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &right_motor, 1)) {
+            return true;
         }
     }
-    return (found == 2);
+    left_motor = right_motor = DESC_LIMIT;
+    return false;
 }
 
 void set_speed(int speed) {
@@ -153,16 +160,19 @@ void tank_turn(int speed, int degrees) {
     set_tacho_position_sp(right_motor, -wheel_deg);
     set_tacho_command_inx(left_motor,  TACHO_RUN_TO_REL_POS);
     set_tacho_command_inx(right_motor, TACHO_RUN_TO_REL_POS);
-    wait_by_degrees(s, wheel_deg);
+    wait_by_degrees(s, abs(wheel_deg));
 }
 
 void pivot_turn(int speed, int degrees, int direction) {
     int wheel_deg = robot_to_wheel_deg(degrees, 2.0);
     int s = abs(speed);
-    uint8_t motor = (direction == 1) ? right_motor : left_motor;
-    set_tacho_speed_sp(motor, s * ((wheel_deg >= 0) ? 1 : -1));
-    set_tacho_position_sp(motor, wheel_deg);
-    set_tacho_command_inx(motor, TACHO_RUN_TO_REL_POS);
+    uint8_t motor_to_move = (direction == 1) ? right_motor : left_motor;
+    uint8_t motor_to_stop = (direction == 1) ? left_motor : right_motor;
+
+    set_tacho_speed_sp(motor_to_move, s);
+    set_tacho_position_sp(motor_to_move, wheel_deg);
+    set_tacho_command_inx(motor_to_stop, TACHO_STOP);
+    set_tacho_command_inx(motor_to_move, TACHO_RUN_TO_REL_POS);
     wait_by_degrees(s, wheel_deg);
 }
 
