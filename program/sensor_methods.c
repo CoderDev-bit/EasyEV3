@@ -73,7 +73,7 @@ bool is_button_pressed(uint8_t button_mask) {
 }
 
 // ---------- Color Sensor Methods ----------
-static const char* color_names[] = {
+const char* color_names[] = {
     "?", "BLACK", "BLUE", "GREEN", "YELLOW", "RED", "WHITE", "BROWN"
 };
 #define COLOR_COUNT ((int)(sizeof(color_names) / sizeof(color_names[0])))
