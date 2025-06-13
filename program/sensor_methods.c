@@ -19,8 +19,9 @@ const char* color_names[] = {
 const int COLOR_COUNT = sizeof(color_names) / sizeof(color_names[0]);
 
 static bool gyro_auto_reset = true;
-static uint8_t left_motor  = DESC_LIMIT;
-static uint8_t right_motor = DESC_LIMIT;
+
+uint8_t left_motor  = DESC_LIMIT;
+uint8_t right_motor = DESC_LIMIT;
 
 // ---------- Utility Methods ----------
 static void wait_by_degrees(int speed, int degrees) {

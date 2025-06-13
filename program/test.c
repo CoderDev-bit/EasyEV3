@@ -1,12 +1,19 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <limits.h>         // ← for INT_MAX
+#include <stdint.h>         // ← for uint8_t
 #include "ev3.h"
 #include "ev3_sensor.h"
 #include "ev3_tacho.h"
 #include "sensor_methods.h"
 
+
 #define Sleep(ms) usleep((ms) * 1000)
 #define MAX_SENSORS 4
+
+// Motor handles from sensor_methods.c (must be non-static there)
+extern uint8_t left_motor;
+extern uint8_t right_motor;
 
 // --- BACK Button Check ---
 static bool check_back_button_once() {
@@ -178,17 +185,12 @@ static void test_everything() {
 
 // --- Compoud tests ---
 static void test_360_scan() {
-    printf("\n--- 360° Environmental Scan ---\n");
-
-    if (check_back_button_once()) {
-        printf("Scan test skipped.\n");
-        wait_until_back_released();
-        return;
-    }
-
+    printf("\n--- Testing 360° Scan ---\n");
     uint8_t sn_gyro, sn_us;
+
+    // initialize sensors and motors
     if (!init_gyro(&sn_gyro, true)) {
-        printf("Gyro not found.\n");
+        printf("Gyro sensor not found.\n");
         return;
     }
     if (!init_ultrasonic(&sn_us)) {
@@ -196,41 +198,73 @@ static void test_360_scan() {
         return;
     }
     if (!init_motors()) {
-        printf("Motors not initialized.\n");
+        printf("Motors not found.\n");
         return;
     }
 
-    printf("Starting 360° turn and scan...\n");
-    reset_gyro(sn_gyro);  // Ensure starting from angle 0
+    printf("Starting 360° scan. Press BACK to abort.\n");
 
-    // Begin 360° tank turn at moderate speed
-    int speed = 100;
-    int degrees = 360;
-    int sampling_delay_ms = 100;
+    int min_dist = INT_MAX;
+    int min_angle = 0;
 
-    // Start the turn
-    tank_turn(speed, degrees);
+    // continuous rotation: left forward, right backward
+    set_tacho_speed_sp(left_motor,  200);
+    set_tacho_speed_sp(right_motor, -200);
+    set_tacho_command_inx(left_motor,  TACHO_RUN_FOREVER);
+    set_tacho_command_inx(right_motor, TACHO_RUN_FOREVER);
 
-    // While turning, collect (angle, distance) pairs
+    // scan until full circle
     while (true) {
-        int state_l = 0, state_r = 0;
-        get_tacho_state_flags(left_motor,  &state_l);
-        get_tacho_state_flags(right_motor, &state_r);
-        if ((state_l & TACHO_RUNNING) == 0 && (state_r & TACHO_RUNNING) == 0) break;
-
-        int angle = 0, distance = 0;
-        if (get_gyro_angle(sn_gyro, &angle) && get_distance_mm(sn_us, &distance)) {
-            if (distance < 2550) {
-                printf("Angle: %3d°, Distance: %4d mm\n", angle, distance);
+        if (check_back_button_once()) {
+            printf("360° scan aborted.\n");
+            wait_until_back_released();
+            stop_motors();
+            return;
+        }
+        int angle;
+        if (get_gyro_angle(sn_gyro, &angle)) {
+            int dist_cm;
+            if (get_distance_mm(sn_us, &dist_cm) && dist_cm < 255) {
+                int dist_mm = dist_cm * 10;
+                if (dist_mm < min_dist) {
+                    min_dist  = dist_mm;
+                    min_angle = angle;
+                }
+            }
+            if (angle >= 360) {
+                break;
             }
         }
-
-        Sleep(sampling_delay_ms);
+        Sleep(50);
     }
-
     stop_motors();
-    printf("--- Scan complete ---\n");
+
+    if (min_dist < INT_MAX) {
+        printf("Nearest object at %d°, %d mm away.\n", min_angle, min_dist);
+
+        int current;
+        get_gyro_angle(sn_gyro, &current);
+        int turn_deg = (min_angle - current + 360) % 360;
+        if (turn_deg > 180) turn_deg -= 360;
+
+        tank_turn(200, turn_deg);
+        printf("Moving towards object...\n");
+
+        while (true) {
+            int dist_cm;
+            if (get_distance_mm(sn_us, &dist_cm) && dist_cm * 10 > 50) {
+                move_for_time(200, 200);
+            } else {
+                break;
+            }
+        }
+        stop_motors();
+        printf("Reached object.\n");
+    } else {
+        printf("No object detected within range.\n");
+    }
 }
+
 
 
 int main() {
@@ -247,7 +281,7 @@ int main() {
     ev3_sensor_init();
     ev3_tacho_init();
 
-    test_everything();
+    test_360_scan();
 
     ev3_uninit();
     printf("\nTest suite finished.\n");

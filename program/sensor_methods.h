@@ -38,3 +38,6 @@ void stop_motors(void);
 void print_motor_stats(void);
 
 #endif // SENSOR_METHODS_H
+
+extern uint8_t left_motor;
+extern uint8_t right_motor;
