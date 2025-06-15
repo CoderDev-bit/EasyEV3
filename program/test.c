@@ -188,7 +188,6 @@ static void test_360_scan() {
     printf("\n--- Testing 360° Scan ---\n");
     uint8_t sn_gyro, sn_us;
 
-    // initialize sensors and motors
     if (!init_gyro(&sn_gyro, true)) {
         printf("Gyro sensor not found.\n");
         return;
@@ -202,18 +201,21 @@ static void test_360_scan() {
         return;
     }
 
+    // Reset gyro to 0
+    reset_gyro(sn_gyro);
+    Sleep(1000);  // Allow reset to settle
+
     printf("Starting 360° scan. Press BACK to abort.\n");
 
     int min_dist = INT_MAX;
     int min_angle = 0;
 
-    // continuous rotation: left forward, right backward
+    // Start rotation: clockwise
     set_tacho_speed_sp(left_motor,  200);
     set_tacho_speed_sp(right_motor, -200);
     set_tacho_command_inx(left_motor,  TACHO_RUN_FOREVER);
     set_tacho_command_inx(right_motor, TACHO_RUN_FOREVER);
 
-    // scan until full circle
     while (true) {
         if (check_back_button_once()) {
             printf("360° scan aborted.\n");
@@ -221,30 +223,33 @@ static void test_360_scan() {
             stop_motors();
             return;
         }
+
         int angle;
         if (get_gyro_angle(sn_gyro, &angle)) {
             int dist_cm;
             if (get_distance_mm(sn_us, &dist_cm) && dist_cm < 255) {
                 int dist_mm = dist_cm * 10;
                 if (dist_mm < min_dist) {
-                    min_dist  = dist_mm;
+                    min_dist = dist_mm;
                     min_angle = angle;
                 }
             }
-            if (angle >= 360) {
-                break;
-            }
+
+            if (angle >= 360) break;
         }
-        Sleep(50);
+
+        Sleep(30); // Smooth scan
     }
+
     stop_motors();
 
     if (min_dist < INT_MAX) {
         printf("Nearest object at %d°, %d mm away.\n", min_angle, min_dist);
 
-        int current;
-        get_gyro_angle(sn_gyro, &current);
-        int turn_deg = (min_angle - current + 360) % 360;
+        // Determine shortest turning direction
+        int current_angle;
+        get_gyro_angle(sn_gyro, &current_angle);
+        int turn_deg = (min_angle - current_angle + 360) % 360;
         if (turn_deg > 180) turn_deg -= 360;
 
         tank_turn(200, turn_deg);
@@ -253,11 +258,12 @@ static void test_360_scan() {
         while (true) {
             int dist_cm;
             if (get_distance_mm(sn_us, &dist_cm) && dist_cm * 10 > 50) {
-                move_for_time(200, 200);
+                move_for_time(200, 200); // Move forward in small steps
             } else {
                 break;
             }
         }
+
         stop_motors();
         printf("Reached object.\n");
     } else {
