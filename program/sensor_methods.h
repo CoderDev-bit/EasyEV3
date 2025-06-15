@@ -13,6 +13,8 @@ extern const int COLOR_COUNT;
 void set_gyro_auto_reset(bool enable);
 bool init_gyro(uint8_t* sn_gyro, bool reset);
 bool get_gyro_angle(uint8_t sn_gyro, int* angle);
+bool reset_gyro(uint8_t sn_gyro);
+
 
 // --- Button Methods ---
 const char* get_button_name(uint8_t keys);
@@ -36,6 +38,10 @@ void pivot_turn(int speed, int degrees, int direction);
 void arc_turn(int outer_speed, float ratio, int duration_ms);
 void stop_motors(void);
 void print_motor_stats(void);
+
+// ---- TILE
+bool detect_black_tile(int nx, int ny);
+bool can_move(int nx, int ny);
 
 #endif // SENSOR_METHODS_H
 

@@ -38,7 +38,7 @@ void set_gyro_auto_reset(bool enable) {
     gyro_auto_reset = enable;
 }
 
-static void reset_gyro(uint8_t sn_gyro) {
+bool reset_gyro(uint8_t sn_gyro) {
     set_sensor_mode(sn_gyro, "GYRO-RATE");
     Sleep(100);
     set_sensor_mode(sn_gyro, "GYRO-ANG");
