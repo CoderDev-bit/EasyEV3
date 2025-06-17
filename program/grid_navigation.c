@@ -134,15 +134,14 @@ void print_map() {
 }
 
 int main() {
-    ev3_init();
-    init_motors();
-    init_gyro(&sn_gyro, true);
-    init_all_color_sensors(color_sensors, 2);
+    if (ev3_init() == -1) return 1;
+    if (!init_motors()) return 1;
+    
+    printf("Motors initialized. Moving forward...\n");
+    move_for_degrees(30, 720); // rotate both wheels 2 full turns
+    printf("Done.\n");
 
-    for (int i = 0; i < N; i++) for (int j = 0; j < R; j++) map[i][j] = 0;
-
-    explore_grid();
-    print_map();
     ev3_uninit();
     return 0;
 }
+
