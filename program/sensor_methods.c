@@ -10,7 +10,7 @@
 #include "sensor_methods.h"
 
 #define Sleep(ms) usleep((ms) * 1000)
-#define WHEEL_DIAMETER_MM 57
+#define WHEEL_DIAMETER_MM 49.5
 #define WHEEL_BASE_MM      104.0
 
 const char* color_names[] = {
