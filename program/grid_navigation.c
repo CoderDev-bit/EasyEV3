@@ -77,8 +77,13 @@ int main(void) {
  * @brief Initializes motors, sensors, and the map state.
  */
 void initialize_robot_systems() {
-    ev3_init();
-    
+    ev3_init(); // Initialize the core EV3 system
+
+    // IMPORTANT: Initialize sensor and tacho (motor) subsystems
+    // BEFORE attempting to search for specific sensors or motors.
+    ev3_sensor_init(); // Initializes the sensor subsystem
+    ev3_tacho_init();  // Initializes the tacho (motor) subsystem
+
     // Initialize motors
     if (!init_motors()) {
         fprintf(stderr, "Failed to initialize motors.\n");
@@ -94,11 +99,12 @@ void initialize_robot_systems() {
     printf("Gyro initialized and reset.\n");
 
     // Initialize color sensor
+    // You might also need to explicitly initialize sensor_mode for color if not already done in init_all_color_sensors
     if (init_all_color_sensors(sn_color, 1) < 1) {
         fprintf(stderr, "Failed to initialize color sensor.\n");
         exit(EXIT_FAILURE);
     }
-    set_sensor_mode(sn_color[0], "COL-COLOR");
+    set_sensor_mode(sn_color[0], "COL-COLOR"); // Ensure mode is set AFTER initialization
     printf("Color sensor initialized.\n");
     
     srand(time(NULL));
