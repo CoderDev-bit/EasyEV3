@@ -116,12 +116,28 @@ bool get_distance_mm(uint8_t sn_us, int* distance_mm) {
 
 // ---------- Motor Methods (Revised init_motors) ----------
 bool init_motors(void) {
-    if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &left_motor, 0)) {
-        if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &right_motor, 1)) {
+    // Attempt to initialize left motor on Port B and right motor on Port C
+    if (ev3_search_tacho_plugged_in(EV3_PORT_B, LEGO_EV3_L_MOTOR, &left_motor, 0)) {
+        if (ev3_search_tacho_plugged_in(EV3_PORT_C, LEGO_EV3_L_MOTOR, &right_motor, 0)) {
+            printf("Motors initialized on Port B (Left) and Port C (Right).\n");
             return true;
         }
     }
+    
+    // If the above fails, you can add a fallback to the original general search,
+    // or keep it simple and just rely on the specific port search.
+    // For debugging, it's good to know if the specific search failed.
+    printf("Failed to initialize motors on specific ports (B and C). Trying general search...\n");
+    
+    if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &left_motor, 0)) {
+        if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &right_motor, 1)) {
+            printf("Motors initialized using general search (indices 0 and 1).\n");
+            return true;
+        }
+    }
+
     left_motor = right_motor = DESC_LIMIT;
+    fprintf(stderr, "ERROR: Could not find both large motors.\n");
     return false;
 }
 
