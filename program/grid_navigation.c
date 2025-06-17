@@ -134,14 +134,22 @@ void print_map() {
 }
 
 int main() {
-    if (ev3_init() == -1) return 1;
-    if (!init_motors()) return 1;
-    
-    printf("Motors initialized. Moving forward...\n");
-    move_for_degrees(30, 720); // rotate both wheels 2 full turns
-    printf("Done.\n");
+    if (ev3_init() == -1) {
+        printf("EV3 failed to init\n");
+        return 1;
+    }
+    printf("EV3 initialized successfully!\n");
+
+    if (!init_motors()) {
+        printf("Motor init failed\n");
+        return 1;
+    }
+    printf("Motors initialized. Moving...\n");
+    move_for_degrees(30, 360); // small movement
+    printf("Finished moving.\n");
 
     ev3_uninit();
     return 0;
 }
+
 
