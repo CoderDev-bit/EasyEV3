@@ -1,103 +1,135 @@
-
 #include <stdio.h>
-#include <stdbool.h>
 #include <stdlib.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include "ev3.h"
+#include "ev3_sensor.h"
+#include "ev3_tacho.h"
 #include "sensor_methods.h"
 
 #define TILE_LENGTH 253
 #define RETURN_LENGTH 70
 #define SPEED 30
+#define WHEEL_DIAMETER 49.5
+#define WHEEL_BASE 104
 #define N 4
 #define R 4
-#define NORTH 0
-#define EAST 90
-#define SOUTH 180
-#define WEST 270
 
-int map[N][R];
+int map[N][R]; // 0 = unvisited, 1 = white, 2 = obstacle
+char CURRENT_DIR = 'N';
 int x_pos = 0;
 int y_pos = 0;
-int direction = NORTH;
 
 uint8_t sn_gyro;
-uint8_t sn_color[2];
+uint8_t color_sensors[2];
 
-void print_tile(int y, int x) {
-    if (map[y][x] == 2) printf("■ ");
-    else if (map[y][x] == 1) printf("□ ");
-    else printf("⍰ ");
-}
-
-void print_map() {
-    for (int y = N - 1; y >= 0; y--) {
-        for (int x = 0; x < R; x++) {
-            print_tile(y, x);
-        }
-        printf("\n");
+void update_direction(char turn) {
+    switch (CURRENT_DIR) {
+        case 'N': CURRENT_DIR = (turn == 'L') ? 'W' : 'E'; break;
+        case 'S': CURRENT_DIR = (turn == 'L') ? 'E' : 'W'; break;
+        case 'E': CURRENT_DIR = (turn == 'L') ? 'N' : 'S'; break;
+        case 'W': CURRENT_DIR = (turn == 'L') ? 'S' : 'N'; break;
     }
 }
 
 void update_position() {
-    switch (direction) {
-        case NORTH: y_pos++; break;
-        case SOUTH: y_pos--; break;
-        case EAST:  x_pos++; break;
-        case WEST:  x_pos--; break;
-    }
+    if (CURRENT_DIR == 'N') y_pos++;
+    else if (CURRENT_DIR == 'S') y_pos--;
+    else if (CURRENT_DIR == 'E') x_pos++;
+    else if (CURRENT_DIR == 'W') x_pos--;
 }
 
 void move_forward_tile() {
-    move_for_degrees(SPEED, (360 * TILE_LENGTH) / (3.14 * 49.5)); // Convert mm to degrees
+    move_for_degrees(SPEED, (int)(TILE_LENGTH / (WHEEL_DIAMETER * 3.14159) * 360));
 }
 
 void move_back_return() {
-    move_for_degrees(SPEED, -(360 * RETURN_LENGTH) / (3.14 * 49.5));
+    move_for_degrees(-SPEED, (int)(RETURN_LENGTH / (WHEEL_DIAMETER * 3.14159) * 360));
 }
 
-void turn_left() {
-    tank_turn(SPEED, 90);
-    direction = (direction + 90) % 360;
+bool detect_obstacle(int color) {
+    return color == 1 || color == 5; // black or red
 }
 
-void turn_right() {
-    tank_turn(SPEED, -90);
-    direction = (direction + 270) % 360;
-}
-
-void turn_around() {
-    tank_turn(SPEED, 180);
-    direction = (direction + 180) % 360;
-}
-
-bool is_valid(int y, int x) {
-    return y >= 0 && y < N && x >= 0 && x < R;
-}
-
-bool explore_tile() {
-    int color_value;
-    get_color_value(sn_color[0], &color_value);
-    if (color_value == 1 || color_value == 5) { // BLACK or RED
-        map[y_pos][x_pos] = 2;
-        move_back_return();
-        return false;
+void mark_tile(int value) {
+    if (x_pos >= 0 && x_pos < R && y_pos >= 0 && y_pos < N) {
+        map[y_pos][x_pos] = value;
     }
-    map[y_pos][x_pos] = 1;
-    return true;
 }
 
-bool is_goal() {
-    return (x_pos == 3 && y_pos == 3);
+bool is_valid(int x, int y) {
+    return x >= 0 && x < R && y >= 0 && y < N && map[y][x] != 2;
 }
 
-void robot_loop() {
-    while (!is_goal()) {
-        explore_tile();
+void turn_robot(char turn) {
+    tank_turn(SPEED, (turn == 'L') ? 90 : -90);
+    update_direction(turn);
+}
 
-        // Example direction logic - always turn right if possible
-        // In full implementation, you would check map[][] values
-        turn_right();
-        update_position();
-        move_forward_tile();
+void explore_grid() {
+    while (x_pos != 3 || y_pos != 3) {
+        int color;
+        get_color_value(color_sensors[0], &color);
+
+        if (detect_obstacle(color)) {
+            mark_tile(2);
+            move_back_return();
+            continue;
+        } else {
+            mark_tile(1);
+        }
+
+        int next_x = x_pos;
+        int next_y = y_pos;
+        bool moved = false;
+
+        if (CURRENT_DIR == 'N') next_y++;
+        else if (CURRENT_DIR == 'S') next_y--;
+        else if (CURRENT_DIR == 'E') next_x++;
+        else if (CURRENT_DIR == 'W') next_x--;
+
+        if (is_valid(next_x, next_y)) {
+            update_position();
+            move_forward_tile();
+            continue;
+        }
+
+        turn_robot('L');
+        if (CURRENT_DIR == 'N') next_y++;
+        else if (CURRENT_DIR == 'S') next_y--;
+        else if (CURRENT_DIR == 'E') next_x++;
+        else if (CURRENT_DIR == 'W') next_x--;
+
+        if (is_valid(next_x, next_y)) {
+            update_position();
+            move_forward_tile();
+            continue;
+        }
+
+        turn_robot('R'); turn_robot('R'); // 180°
+        if (CURRENT_DIR == 'N') next_y++;
+        else if (CURRENT_DIR == 'S') next_y--;
+        else if (CURRENT_DIR == 'E') next_x++;
+        else if (CURRENT_DIR == 'W') next_x--;
+
+        if (is_valid(next_x, next_y)) {
+            update_position();
+            move_forward_tile();
+        }
+    }
+}
+
+void print_map() {
+    printf("Final Grid:\n");
+    for (int y = N - 1; y >= 0; y--) {
+        for (int x = 0; x < R; x++) {
+            switch (map[y][x]) {
+                case 0: printf("⍰ "); break;
+                case 1: printf("□ "); break;
+                case 2: printf("■ "); break;
+            }
+        }
+        printf("\n");
     }
 }
 
@@ -105,15 +137,12 @@ int main() {
     ev3_init();
     init_motors();
     init_gyro(&sn_gyro, true);
-    init_all_color_sensors(sn_color, 2);
+    init_all_color_sensors(color_sensors, 2);
 
-    for (int i = 0; i < N; i++)
-        for (int j = 0; j < R; j++)
-            map[i][j] = 0;
+    for (int i = 0; i < N; i++) for (int j = 0; j < R; j++) map[i][j] = 0;
 
-    robot_loop();
+    explore_grid();
     print_map();
-
     ev3_uninit();
     return 0;
 }
