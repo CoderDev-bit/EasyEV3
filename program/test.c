@@ -271,6 +271,47 @@ static void test_360_scan() {
     }
 }
 
+static void forward_until_black() {
+    printf("--- Moving Forward Until Black Detected ---\n"); // Added newline
+    uint8_t color_sensors[MAX_SENSORS];
+    int count = init_all_color_sensors(color_sensors, MAX_SENSORS);
+    if (count < 1) {
+        printf("No color sensor found.\n"); // Added newline
+        return;
+    }
+    // Initialize motors
+    if (!init_motors()) { // Added motor initialization check
+        printf("Failed to initialize motors.\n"); // Added newline
+        return;
+    }
+
+    uint8_t sn_color = color_sensors[0];
+
+    printf("Moving forward. Press BACK to abort.\n"); // Added newline
+    // drive forward
+    set_tacho_speed_sp(left_motor,  200);
+    set_tacho_speed_sp(right_motor, 200);
+    set_tacho_command_inx(left_motor,  TACHO_RUN_FOREVER);
+    set_tacho_command_inx(right_motor, TACHO_RUN_FOREVER);
+
+    // wait for black (color code 1)
+    while (true) {
+        if (check_back_button_once()) {
+            printf("Forward-until-black aborted.\n"); // Added newline
+            stop_motors();
+            wait_until_back_released();
+            return;
+        }
+        int color;
+        if (get_color_value(sn_color, &color) && color == 1) {
+            printf("Black detected. Stopping.\n"); // Added newline
+            break;
+        }
+        Sleep(50);
+    }
+    stop_motors();
+}
+
 
 
 int main() {
@@ -287,7 +328,7 @@ int main() {
     ev3_sensor_init();
     ev3_tacho_init();
 
-    test_360_scan();
+    forward_until_black();
 
     ev3_uninit();
     printf("\nTest suite finished.\n");
