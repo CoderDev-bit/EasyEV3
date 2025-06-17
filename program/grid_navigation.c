@@ -4,8 +4,13 @@
 #include <time.h>
 #include <unistd.h>
 #include "sensor_methods.h"
+#include "ev3_sensor.h" // Added to declare set_sensor_mode
 
 // --- Configuration Constants ---
+
+// Helper Macro from sensor_methods.c
+#define Sleep(ms) usleep((ms) * 1000)
+
 // Grid and Position
 #define GRID_ROWS 4
 #define GRID_COLS 4
@@ -18,6 +23,10 @@
 #define WHEEL_DIAMETER_MM 49.5f
 #define TILE_LENGTH_MM 253
 #define RETURN_LENGTH_MM 70
+
+// Color constants based on color_names array in sensor_methods.c
+#define COLOR_BLACK 1
+#define COLOR_RED 5
 
 // Calculated Movement Values
 #define PI 3.14159f
@@ -60,6 +69,7 @@ int main(void) {
     printf("Exploration complete or end position reached.\n");
     print_final_map();
 
+    ev3_uninit();
     return 0;
 }
 
@@ -111,7 +121,6 @@ void initialize_map() {
  * This was chosen over the prompt's literal text ("check left/right, then backtrack")
  * as that logic is flawed and would prevent forward movement. This implementation
  * prioritizes turning right, then going straight, then left, and finally backtracking,
-
  * which ensures the entire accessible grid will be explored.
  */
 void perform_exploration_loop() {
@@ -166,7 +175,9 @@ void perform_exploration_loop() {
             x_pos = prev_x;
             y_pos = prev_y;
         } else { // Assume WHITE or other traversable color
-            map[y_pos][x_pos] = WHITE_TILE;
+            if(map[y_pos][x_pos] == UNVISITED) {
+               map[y_pos][x_pos] = WHITE_TILE;
+            }
         }
     }
 }
@@ -203,7 +214,7 @@ void get_relative_coordinates(int* fx, int* fy, int* rx, int* ry, int* lx, int* 
             break;
         case 'E':
             *fx = x_pos + 1; *fy = y_pos;
-            *rx = x_pos;     *ry = y_pos - 1; // South is y-1
+            *rx = x_pos;     *ry = y_pos - 1; // South is y-1 in our grid
             *lx = x_pos;     *ly = y_pos + 1; // North is y+1
             break;
         case 'S':
@@ -282,7 +293,7 @@ void print_final_map() {
             }
             if(map[y][x] == WHITE_TILE){
                 printf("  Available Directions: ");
-                // Check North
+                // Check North (y+1 because Y increases downwards)
                 if (y + 1 < GRID_ROWS && map[y+1][x] == WHITE_TILE) printf("N ");
                 // Check South
                 if (y - 1 >= 0 && map[y-1][x] == WHITE_TILE) printf("S ");
