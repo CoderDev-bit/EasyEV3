@@ -114,16 +114,18 @@ bool get_distance_mm(uint8_t sn_us, int* distance_mm) {
     return get_sensor_value(0, sn_us, distance_mm);
 }
 
-// ---------- Motor Methods (Revised init_motors) ----------
 bool init_motors(void) {
-    if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &left_motor, 0)) {
-        if (ev3_search_tacho(LEGO_EV3_L_MOTOR, &right_motor, 1)) {
-            return true;
-        }
+    if (!ev3_search_tacho_plugged_in(LEGO_EV3_L_MOTOR, EV3_PORT__OUT_B, &left_motor, 0)) {
+        printf("Left motor not found on port B\n");
+        return false;
     }
-    left_motor = right_motor = DESC_LIMIT;
-    return false;
+    if (!ev3_search_tacho_plugged_in(LEGO_EV3_L_MOTOR, EV3_PORT__OUT_C, &right_motor, 0)) {
+        printf("Right motor not found on port C\n");
+        return false;
+    }
+    return true;
 }
+
 
 void set_speed(int speed) {
     set_tacho_speed_sp(left_motor,  speed);
