@@ -177,7 +177,7 @@ void navigation_loop() {
 
         // Step 1: Color detection
         int color = get_current_tile_color();
-        if (color == 1 || color == 5) { // Black or Red = obstacle
+        if (color == 6 || color == 5) { // Black or Red = obstacle
             printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
             map[y_pos][x_pos] = 2;
             move_backward_return();
@@ -236,8 +236,6 @@ void navigation_loop() {
     }
     printf("Reached end position (%d,%d).\n", x_pos, y_pos);
 }
-
-
 
 // After navigation, print map with legend
 void print_final_grid() {
