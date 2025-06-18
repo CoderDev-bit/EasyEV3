@@ -206,8 +206,6 @@ int pick_next_direction() {
     }
 }
 
-
-
 void navigation_loop() {
     bool first_move = true;
 
@@ -313,6 +311,17 @@ void print_final_grid() {
     }
 }
 
+// Print the value of a tile at given (x, y) coordinates
+void print_tile_value(int x, int y) {
+    // Check if the coordinates are in bounds
+    if (in_bounds(x, y)) {
+        printf("Tile at (%d, %d) has value: %d\n", x, y, map[y][x]);
+    } else {
+        printf("Invalid coordinates (%d, %d)\n", x, y);
+    }
+}
+
+
 
 // ========== MAIN ===========
 int main() {
@@ -333,5 +342,6 @@ int main() {
 
     ev3_uninit();
     printf("Program complete.\n");
+    print_tile_value(3, 3);  
     return 0;
 }
