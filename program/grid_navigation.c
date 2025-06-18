@@ -1,314 +1,278 @@
+// grid_navigation.c
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <time.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <unistd.h>
+#include "ev3.h"
+#include "ev3_sensor.h"
+#include "ev3_tacho.h"
 #include "sensor_methods.h"
-#include "ev3_sensor.h" // Added to declare set_sensor_mode
 
-// --- Configuration Constants ---
+// ======= CONSTANTS AND GLOBAL VARIABLES =======
+#define START_X 0
+#define START_Y 0
+#define END_X 3
+#define END_Y 3
+#define N 4
+#define R 4
 
-// Helper Macro from sensor_methods.c
+#define SPEED 100              // mm per second
+#define TILE_LENGTH 253       // mm
+#define RETURN_LENGTH 70      // mm
+
+// Directions: 0=NORTH, 1=EAST, 2=SOUTH, 3=WEST
+#define NORTH 0
+#define EAST  1
+#define SOUTH 2
+#define WEST  3
+
+// Map legend: 0 = unvisited, 1 = white (visited), 2 = black/red (obstacle)
+int map[N][R];
+
+// Robot's current position and direction (0=N, 1=E, 2=S, 3=W)
+int x_pos = START_X;
+int y_pos = START_Y;
+int current_dir = NORTH;
+
+// Color sensor(s)
+#define MAX_SENSORS 4
+uint8_t color_sensors[MAX_SENSORS];
+int color_sensor_count = 0;
+
+// ====== HELPER FUNCTIONS ======
+
+// Sleep helper
 #define Sleep(ms) usleep((ms) * 1000)
 
-// Grid and Position
-#define GRID_ROWS 4
-#define GRID_COLS 4
-#define END_POS_X 3
-#define END_POS_Y 3
-#define START_DIR 'N'
-
-// Robot Movement
-#define SPEED 30
-#define WHEEL_DIAMETER_MM 49.5f
-#define TILE_LENGTH_MM 253
-#define RETURN_LENGTH_MM 70
-
-// Color constants based on color_names array in sensor_methods.c
-#define COLOR_BLACK 1
-#define COLOR_RED 5
-
-// Calculated Movement Values
-#define PI 3.14159f
-const int DEGREES_PER_TILE = (int)((TILE_LENGTH_MM * 360.0f) / (WHEEL_DIAMETER_MM * PI));
-const int DEGREES_FOR_RETURN = (int)((RETURN_LENGTH_MM * 360.0f) / (WHEEL_DIAMETER_MM * PI));
-
-// Map Legend
-#define UNVISITED 0
-#define WHITE_TILE 1
-#define OBSTACLE 2
-
-// --- Global Variables ---
-int map[GRID_ROWS][GRID_COLS];
-char CURRENT_DIR = START_DIR;
-int x_pos = 0;
-int y_pos = 0;
-
-uint8_t sn_color[1]; // We will use one color sensor
-uint8_t sn_gyro;
-
-// --- Forward Declarations ---
-void initialize_robot_systems();
-void initialize_map();
-void perform_exploration_loop();
-void print_final_map();
-void update_direction(int turn_degrees);
-void get_relative_coordinates(int* fx, int* fy, int* rx, int* ry, int* lx, int* ly);
-bool is_valid_and_accessible(int x, int y);
-
-// --- Main Program ---
-int main(void) {
-    initialize_robot_systems();
-    initialize_map();
-
-    printf("Starting exploration from (%d, %d) facing %c.\n", x_pos, y_pos, CURRENT_DIR);
-    printf("Target is (%d, %d).\n", END_POS_X, END_POS_Y);
-
-    perform_exploration_loop();
-
-    printf("Exploration complete or end position reached.\n");
-    print_final_map();
-
-    ev3_uninit();
-    return 0;
+// Convert direction index to string for debug
+const char* dir_to_str(int d) {
+    switch (d % 4) {
+        case 0: return "NORTH";
+        case 1: return "EAST";
+        case 2: return "SOUTH";
+        case 3: return "WEST";
+    }
+    return "?";
 }
 
-/**
- * @brief Initializes motors, sensors, and the map state.
- */
-void initialize_robot_systems() {
-    ev3_init(); // Initialize the core EV3 system
+// Delta X/Y based on current direction
+int dx[4] = {0, 1, 0, -1}; // N,E,S,W
+int dy[4] = {1, 0, -1, 0}; // N,E,S,W
 
-    // IMPORTANT: Initialize sensor and tacho (motor) subsystems
-    // BEFORE attempting to search for specific sensors or motors.
-    ev3_sensor_init(); // Initializes the sensor subsystem
-    ev3_tacho_init();  // Initializes the tacho (motor) subsystem
-
-    // Initialize motors
-    if (!init_motors()) {
-        fprintf(stderr, "Failed to initialize motors.\n");
-        exit(EXIT_FAILURE);
-    }
-    printf("Motors initialized.\n");
-
-    // Initialize and reset gyro sensor
-    if (!init_gyro(&sn_gyro, true)) {
-        fprintf(stderr, "Failed to initialize gyro sensor.\n");
-        exit(EXIT_FAILURE);
-    }
-    printf("Gyro initialized and reset.\n");
-
-    // Initialize color sensor
-    // You might also need to explicitly initialize sensor_mode for color if not already done in init_all_color_sensors
-    if (init_all_color_sensors(sn_color, 1) < 1) {
-        fprintf(stderr, "Failed to initialize color sensor.\n");
-        exit(EXIT_FAILURE);
-    }
-    set_sensor_mode(sn_color[0], "COL-COLOR"); // Ensure mode is set AFTER initialization
-    printf("Color sensor initialized.\n");
-    
-    srand(time(NULL));
+// Checks if (x, y) is in bounds
+bool in_bounds(int x, int y) {
+    return (x >= 0 && x < R && y >= 0 && y < N);
 }
 
-/**
- * @brief Sets all map cells to 0 (unvisited).
- */
-void initialize_map() {
-    for (int i = 0; i < GRID_ROWS; i++) {
-        for (int j = 0; j < GRID_COLS; j++) {
-            map[i][j] = UNVISITED;
-        }
-    }
-}
-
-/**
- * @brief The main loop for navigating the grid.
- * NOTE: The algorithm is a "right-hand on the wall" maze-solving strategy.
- * This was chosen over the prompt's literal text ("check left/right, then backtrack")
- * as that logic is flawed and would prevent forward movement. This implementation
- * prioritizes turning right, then going straight, then left, and finally backtracking,
- * which ensures the entire accessible grid will be explored.
- */
-void perform_exploration_loop() {
-    // The robot starts at (0,0), which we assume is a white tile.
-    map[y_pos][x_pos] = WHITE_TILE;
-
-    while (x_pos != END_POS_X || y_pos != END_POS_Y) {
-        int prev_x = x_pos;
-        int prev_y = y_pos;
-
-        // 1. Decide next move based on "Right-Hand Rule"
-        int fx, fy, rx, ry, lx, ly;
-        get_relative_coordinates(&fx, &fy, &rx, &ry, &lx, &ly);
-
-        if (is_valid_and_accessible(rx, ry)) {
-            // Path to the right is clear, turn right
-            tank_turn(SPEED, -90);
-            update_direction(-90);
-        } else if (is_valid_and_accessible(fx, fy)) {
-            // Path forward is clear, no turn needed
-        } else if (is_valid_and_accessible(lx, ly)) {
-            // Path to the left is clear, turn left
-            tank_turn(SPEED, 90);
-            update_direction(90);
-        } else {
-            // No path forward, turn around (backtrack)
-            tank_turn(SPEED, 180);
-            update_direction(180);
-        }
-        
-        // Update logical position for the upcoming move
-        switch(CURRENT_DIR) {
-            case 'N': y_pos++; break;
-            case 'S': y_pos--; break;
-            case 'E': x_pos++; break;
-            case 'W': x_pos--; break;
-        }
-
-        // 2. Move forward one tile
-        move_for_degrees(SPEED, DEGREES_PER_TILE);
-        Sleep(500); // Pause to stabilize for color reading
-
-        // 3. Detect color of the new tile
-        int color_val = 0;
-        get_color_value(sn_color[0], &color_val);
-
-        if (color_val == COLOR_BLACK || color_val == COLOR_RED) {
-            map[y_pos][x_pos] = OBSTACLE;
-            // Move backward
-            move_for_degrees(-SPEED, -DEGREES_FOR_RETURN);
-            // Revert logical position
-            x_pos = prev_x;
-            y_pos = prev_y;
-        } else { // Assume WHITE or other traversable color
-            if(map[y_pos][x_pos] == UNVISITED) {
-               map[y_pos][x_pos] = WHITE_TILE;
-            }
-        }
-    }
-}
-
-
-/**
- * @brief Checks if coordinates are within the grid and not a known obstacle.
- * @param x The x-coordinate to check.
- * @param y The y-coordinate to check.
- * @return True if the tile is accessible, false otherwise.
- */
-bool is_valid_and_accessible(int x, int y) {
-    // Check bounds
-    if (x < 0 || x >= GRID_COLS || y < 0 || y >= GRID_ROWS) {
-        return false;
-    }
-    // Check map status
-    if (map[y][x] == OBSTACLE) {
-        return false;
-    }
-    return true;
-}
-
-/**
- * @brief Calculates the coordinates of tiles relative to the robot's current position and direction.
- * Note the coordinate system: Y increases downwards ('N'), X increases to the right ('E').
- */
-void get_relative_coordinates(int* fx, int* fy, int* rx, int* ry, int* lx, int* ly) {
-    switch (CURRENT_DIR) {
-        case 'N':
-            *fx = x_pos;     *fy = y_pos + 1;
-            *rx = x_pos + 1; *ry = y_pos;
-            *lx = x_pos - 1; *ly = y_pos;
-            break;
-        case 'E':
-            *fx = x_pos + 1; *fy = y_pos;
-            *rx = x_pos;     *ry = y_pos - 1; // South is y-1 in our grid
-            *lx = x_pos;     *ly = y_pos + 1; // North is y+1
-            break;
-        case 'S':
-            *fx = x_pos;     *fy = y_pos - 1;
-            *rx = x_pos - 1; *ry = y_pos;
-            *lx = x_pos + 1; *ly = y_pos;
-            break;
-        case 'W':
-            *fx = x_pos - 1; *fy = y_pos;
-            *rx = x_pos;     *ry = y_pos + 1; // North is y+1
-            *lx = x_pos;     *ry = y_pos - 1; // South is y-1
-            break;
-    }
-}
-
-/**
- * @brief Updates the CURRENT_DIR character based on a turn.
- * @param turn_degrees The degrees of the turn (-90 for right, 90 for left, 180 for back).
- */
-void update_direction(int turn_degrees) {
-    if (turn_degrees == 90 || turn_degrees == -270) { // Left Turn
-        switch (CURRENT_DIR) {
-            case 'N': CURRENT_DIR = 'W'; break;
-            case 'W': CURRENT_DIR = 'S'; break;
-            case 'S': CURRENT_DIR = 'E'; break;
-            case 'E': CURRENT_DIR = 'N'; break;
-        }
-    } else if (turn_degrees == -90 || turn_degrees == 270) { // Right Turn
-        switch (CURRENT_DIR) {
-            case 'N': CURRENT_DIR = 'E'; break;
-            case 'E': CURRENT_DIR = 'S'; break;
-            case 'S': CURRENT_DIR = 'W'; break;
-            case 'W': CURRENT_DIR = 'N'; break;
-        }
-    } else if (abs(turn_degrees) == 180) { // Turn Around
-        switch (CURRENT_DIR) {
-            case 'N': CURRENT_DIR = 'S'; break;
-            case 'S': CURRENT_DIR = 'N'; break;
-            case 'E': CURRENT_DIR = 'W'; break;
-            case 'W': CURRENT_DIR = 'E'; break;
-        }
-    }
-}
-
-
-/**
- * @brief Prints the final explored grid map to the console.
- */
-void print_final_map() {
-    printf("\n--- Final Grid Map ---\n");
-    for (int y = 0; y < GRID_ROWS; y++) {
-        for (int x = 0; x < GRID_COLS; x++) {
-            switch (map[y][x]) {
-                case OBSTACLE:
-                    printf(" ■ "); // Black square for obstacles
-                    break;
-                case WHITE_TILE:
-                    printf(" □ "); // White square for traversable
-                    break;
-                case UNVISITED:
-                    printf(" ⍰ "); // Question mark for unvisited
-                    break;
-            }
+// Print the current map grid
+void print_map() {
+    printf("\nMaze Map (Y-down):\n");
+    for (int y = N-1; y >= 0; y--) {
+        for (int x = 0; x < R; x++) {
+            if (x_pos == x && y_pos == y)
+                printf("R "); // Robot is here
+            else if (map[y][x] == 2)
+                printf("■ ");
+            else if (map[y][x] == 1)
+                printf("□ ");
+            else
+                printf("⍰ ");
         }
         printf("\n");
     }
-    printf("\n--- Tile Details ---\n");
-    for (int y = 0; y < GRID_ROWS; y++) {
-        for (int x = 0; x < GRID_COLS; x++) {
-            printf("Coordinates: (%d, %d)\n", x, y);
-            printf("  Color Status: ");
-            switch(map[y][x]) {
-                case UNVISITED: printf("Unvisited (0)\n"); break;
-                case WHITE_TILE: printf("White (1)\n"); break;
-                case OBSTACLE: printf("Black/Red (2)\n"); break;
-            }
-            if(map[y][x] == WHITE_TILE){
-                printf("  Available Directions: ");
-                // Check North (y+1 because Y increases downwards)
-                if (y + 1 < GRID_ROWS && map[y+1][x] == WHITE_TILE) printf("N ");
-                // Check South
-                if (y - 1 >= 0 && map[y-1][x] == WHITE_TILE) printf("S ");
-                // Check East
-                if (x + 1 < GRID_COLS && map[y][x+1] == WHITE_TILE) printf("E ");
-                // Check West
-                if (x - 1 >= 0 && map[y][x-1] == WHITE_TILE) printf("W ");
-                printf("\n");
-            }
+    printf("\n");
+}
+
+// Get tile color using the first color sensor (0=none, 1=black, 5=red, 6=white, 7=brown)
+int get_current_tile_color() {
+    int color = 0;
+    if (color_sensor_count > 0) {
+        get_color_value(color_sensors[0], &color);
+    }
+    return color;
+}
+
+// Turn robot to left (CCW 90°) or right (CW 90°)
+void turn_left_90() {
+    tank_turn(70, 90); // 90 degrees CCW
+    current_dir = (current_dir + 3) % 4;
+}
+void turn_right_90() {
+    tank_turn(70, -90); // 90 degrees CW
+    current_dir = (current_dir + 1) % 4;
+}
+void turn_around_180() {
+    tank_turn(70, 180); // 180 degrees
+    current_dir = (current_dir + 2) % 4;
+}
+
+// Move robot forward one tile and update position
+void move_forward_one_tile() {
+    move_for_time(SPEED, (TILE_LENGTH * 1000) / SPEED);
+    x_pos += dx[current_dir];
+    y_pos += dy[current_dir];
+}
+
+// Move robot backward return length (when hitting obstacle, don't update position)
+void move_backward_return() {
+    move_for_time(-SPEED, (RETURN_LENGTH * 1000) / SPEED);
+}
+
+// Set up all sensors and motors, initialize map to zero
+bool initialize_robot() {
+    printf("Initializing...\n");
+    ev3_sensor_init();
+    ev3_tacho_init();
+    if (!init_motors()) {
+        printf("Failed to initialize motors.\n");
+        return false;
+    }
+    color_sensor_count = init_all_color_sensors(color_sensors, MAX_SENSORS);
+    if (color_sensor_count < 1) {
+        printf("No color sensor found.\n");
+        return false;
+    }
+    for (int y = 0; y < N; y++)
+        for (int x = 0; x < R; x++)
+            map[y][x] = 0;
+    srand(time(NULL));
+    printf("Init done. Starting at (%d,%d) facing %s\n", x_pos, y_pos, dir_to_str(current_dir));
+    return true;
+}
+
+// Returns if a given tile is open (unvisited or white)
+bool is_tile_open(int x, int y) {
+    return in_bounds(x, y) && (map[y][x] == 0 || map[y][x] == 1);
+}
+
+// Pick next direction: random left/right if both are open, otherwise deterministic
+// Returns -1 if must backtrack, else 0 for left, 1 for right
+int pick_next_direction() {
+    int left_dir = (current_dir + 3) % 4;
+    int right_dir = (current_dir + 1) % 4;
+    int lx = x_pos + dx[left_dir], ly = y_pos + dy[left_dir];
+    int rx = x_pos + dx[right_dir], ry = y_pos + dy[right_dir];
+
+    bool left_open = is_tile_open(lx, ly);
+    bool right_open = is_tile_open(rx, ry);
+
+    if (left_open && right_open) {
+        return rand() % 2; // random: 0=left, 1=right
+    } else if (left_open) {
+        return 0;
+    } else if (right_open) {
+        return 1;
+    } else {
+        return -1; // need to backtrack
+    }
+}
+
+// MAIN NAVIGATION LOOP
+void navigation_loop() {
+    bool first_move = true;
+
+    if ((x_pos == END_X && y_pos == END_Y)) {
+        print_map();
+
+        // Step 1: Color detection
+        int color = get_current_tile_color();
+        if (color == 1 || color == 5) { // Black or Red = obstacle
+            printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
+            map[y_pos][x_pos] = 2;
+            move_backward_return();
+            // Backtrack after hitting an obstacle
+            turn_around_180();
+            move_forward_one_tile();
+            continue;
+        }
+        // Step 2: Mark tile as visited (white or brown)
+        if (color == 6 || color == 7) {
+            map[y_pos][x_pos] = 1;
+        }
+
+        // ----- FIXED first_move block -----
+        if (first_move) {
+            printf("First move: Going forward\n");
+            move_forward_one_tile();
+            first_move = false;
+            continue; // Go to next iteration
+        }
+        // ----- END FIX -----
+
+        // ---- NEW FORWARD-CHECK LOGIC ----
+        int fx = x_pos + dx[current_dir], fy = y_pos + dy[current_dir];
+        if (is_tile_open(fx, fy)) {
+            printf("Moving forward to (%d,%d)...\n", fx, fy);
+            move_forward_one_tile();
+            continue;
+        }
+
+        // Otherwise, check left/right for alternative routes
+        int next_turn = pick_next_direction();
+        if (next_turn == -1) {
+            printf("No open left/right. Backtracking...\n");
+            turn_around_180();
+            move_forward_one_tile();
+            continue;
+        }
+        else if (next_turn == 0) {
+            printf("Turning LEFT 90°.\n");
+            turn_left_90();
+        } else {
+            printf("Turning RIGHT 90°.\n");
+            turn_right_90();
+        }
+        // After turning, move forward one tile
+        int nx = x_pos + dx[current_dir], ny = y_pos + dy[current_dir];
+        printf("Moving forward to (%d,%d)...\n", nx, ny);
+        move_forward_one_tile();
+
+        // Safety: Check bounds
+        if (!in_bounds(x_pos, y_pos)) {
+            printf("Moved out of bounds! Ending navigation.\n");
+            break;
         }
     }
+    printf("Reached end position (%d,%d).\n", x_pos, y_pos);
+}
+
+
+// After navigation, print map with legend
+void print_final_grid() {
+    printf("\nFinal Map:\n");
+    for (int y = N-1; y >= 0; y--) {
+        for (int x = 0; x < R; x++) {
+            if (map[y][x] == 2)
+                printf("■ ");
+            else if (map[y][x] == 1)
+                printf("□ ");
+            else
+                printf("⍰ ");
+        }
+        printf("\n");
+    }
+}
+
+// ========== MAIN ===========
+int main() {
+    printf("==== EV3 Grid Navigation ====\n");
+
+    if (ev3_init() < 1) {
+        printf("Error: ev3_init failed.\n");
+        return 1;
+    }
+    if (!initialize_robot()) {
+        printf("Robot setup failed. Exiting.\n");
+        return 1;
+    }
+
+    navigation_loop();
+
+    print_final_grid();
+
+    ev3_uninit();
+    printf("Program complete.\n");
+    return 0;
 }
