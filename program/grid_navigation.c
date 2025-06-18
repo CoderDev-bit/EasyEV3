@@ -144,6 +144,7 @@ bool initialize_robot() {
             map[y][x] = 0;
     srand(time(NULL));
     printf("Init done. Starting at (%d,%d) facing %s\n", x_pos, y_pos, dir_to_str(current_dir));
+    map[START_Y][START_X] = 1;
     return true;
 }
 
