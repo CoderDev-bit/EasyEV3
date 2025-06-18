@@ -199,11 +199,18 @@ void navigation_loop() {
 
         // ----- FIXED first_move block -----
         if (first_move) {
-            printf("First move: Going forward\n");
-            move_forward_one_tile();
-            first_move = false;
-            
-        }
+    int fx = x_pos + dx[current_dir], fy = y_pos + dy[current_dir];
+    if (in_bounds(fx, fy) && is_tile_open(fx, fy)) {
+        printf("Moving forward to (%d,%d)...\n", fx, fy);
+        move_forward_one_tile();
+    } else {
+        printf("At map edge on first move, not moving forward.\n");
+    }
+    first_move = false;
+    continue;
+}
+
+
         // ----- END FIX -----
 
         // ---- NEW FORWARD-CHECK LOGIC ----
@@ -223,12 +230,12 @@ void navigation_loop() {
             continue;
         }
         else if (next_turn == 0) {
-            printf("Turning LEFT 90°.\n");
-            turn_left_90();
-        } else {
-            printf("Turning RIGHT 90°.\n");
-            turn_right_90();
-        }
+    printf("Turning +90° (CCW).\n");
+    turn_left_90();
+} else if (next_turn == 1) {
+    printf("Turning -90° (CW).\n");
+    turn_right_90();
+}
         // After turning, move forward one tile
         int nx = x_pos + dx[current_dir], ny = y_pos + dy[current_dir];
         printf("Moving forward to (%d,%d)...\n", nx, ny);
