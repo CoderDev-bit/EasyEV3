@@ -113,13 +113,7 @@ void move_forward_one_tile() {
     move_for_time(SPEED, (TILE_LENGTH * 1000) / SPEED);
     x_pos += dx[current_dir];
     y_pos += dy[current_dir];
-    // Mark as visited if not an obstacle (don't mark if black/red/white, if that's your rule)
-    int color = get_current_tile_color();
-    if (color != 5 && color != 6) { // Not red, not white (update as per your "stop" tiles)
-        map[y_pos][x_pos] = 1;
-    }
 }
-
 
 // Move robot backward return length (when hitting obstacle, don't update position)
 void move_backward_return() {
@@ -202,7 +196,7 @@ void navigation_loop() {
             printf("First move: Going forward\n");
             move_forward_one_tile();
             first_move = false;
-            
+            continue; // Go to next iteration
         }
         // ----- END FIX -----
 
