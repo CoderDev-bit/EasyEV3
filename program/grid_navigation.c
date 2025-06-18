@@ -169,11 +169,10 @@ int pick_next_direction() {
     }
 }
 
-// MAIN NAVIGATION LOOP
 void navigation_loop() {
     bool first_move = true;
 
-    if ((x_pos == END_X && y_pos == END_Y)) {
+    while (!(x_pos == END_X && y_pos == END_Y)) {
         print_map();
 
         // Step 1: Color detection
@@ -237,6 +236,7 @@ void navigation_loop() {
     }
     printf("Reached end position (%d,%d).\n", x_pos, y_pos);
 }
+
 
 
 // After navigation, print map with legend
