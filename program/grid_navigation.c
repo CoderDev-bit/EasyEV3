@@ -196,15 +196,16 @@ int pick_next_direction() {
         return rand() % 2; // random: 0=left, 1=right
     } else if (left_open) {
         printf("DEBUG: Only left (%d,%d) is open.\n", lx, ly);
-        return 0;
+        return 0; // Turn left
     } else if (right_open) {
         printf("DEBUG: Only right (%d,%d) is open.\n", rx, ry);
-        return 1;
+        return 1; // Turn right
     } else {
         printf("DEBUG: No open left/right tiles. Must backtrack.\n");
-        return -1; // need to backtrack
+        return -1; // Need to backtrack
     }
 }
+
 
 void navigation_loop() {
     bool first_move = true;
@@ -212,17 +213,31 @@ void navigation_loop() {
     while (!(x_pos == END_X && y_pos == END_Y)) {
         print_map();
 
-        // Step 1: Color detection
-        int color = get_current_tile_color();
-if (color == NON_TRAVERSABLE_COLOR_1 || color == NON_TRAVERSABLE_COLOR_2) {  // Black or Red = obstacle
-    printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
-    map[y_pos][x_pos] = 2; // Mark as not traversable
-    move_backward_return();
-    turn_around_180();
-    move_forward_one_tile();
-    continue;
-}
+        // Step 1: Color detection and logic...
 
+        // When an obstacle is detected, the robot turns 180 and checks left/right
+        int color = get_current_tile_color();
+        if (color == NON_TRAVERSABLE_COLOR_1 || color == NON_TRAVERSABLE_COLOR_2) {  // Black or Red = obstacle
+            printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
+            map[y_pos][x_pos] = 2; // Mark as non-traversable
+            move_backward_return();
+            turn_around_180();
+            // After 180° turn, choose to go left, right, or backtrack
+            int next_turn = pick_next_direction();
+
+            if (next_turn == -1) {
+                printf("No open left/right. Backtracking...\n");
+                move_forward_one_tile(); // Backtrack
+            } else if (next_turn == 0) {
+                printf("Turning +90° (CCW).\n");
+                turn_left_90();
+            } else if (next_turn == 1) {
+                printf("Turning -90° (CW).\n");
+                turn_right_90();
+            }
+            move_forward_one_tile(); // After turning, move forward one tile
+            continue;
+        }
 
         // Step 2: Mark tile as visited (white or brown)
         if (color == TRAVERSABLE_COLOR_1 || color == TRAVERSABLE_COLOR_2) {
