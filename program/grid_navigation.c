@@ -161,19 +161,32 @@ int pick_next_direction() {
     int lx = x_pos + dx[left_dir], ly = y_pos + dy[left_dir];
     int rx = x_pos + dx[right_dir], ry = y_pos + dy[right_dir];
 
-    bool left_open = is_tile_open(lx, ly);
-    bool right_open = is_tile_open(rx, ry);
+    bool left_in_bounds = in_bounds(lx, ly);
+    bool right_in_bounds = in_bounds(rx, ry);
+
+    bool left_open = left_in_bounds && is_tile_open(lx, ly);
+    bool right_open = right_in_bounds && is_tile_open(rx, ry);
+
+    if (!left_in_bounds)
+        printf("DEBUG: Left move blocked by edge at (%d,%d)\n", lx, ly);
+    if (!right_in_bounds)
+        printf("DEBUG: Right move blocked by edge at (%d,%d)\n", rx, ry);
 
     if (left_open && right_open) {
+        printf("DEBUG: Both left (%d,%d) and right (%d,%d) are open. Choosing randomly.\n", lx, ly, rx, ry);
         return rand() % 2; // random: 0=left, 1=right
     } else if (left_open) {
+        printf("DEBUG: Only left (%d,%d) is open.\n", lx, ly);
         return 0;
     } else if (right_open) {
+        printf("DEBUG: Only right (%d,%d) is open.\n", rx, ry);
         return 1;
     } else {
+        printf("DEBUG: No open left/right tiles. Must backtrack.\n");
         return -1; // need to backtrack
     }
 }
+
 
 void navigation_loop() {
     bool first_move = true;
