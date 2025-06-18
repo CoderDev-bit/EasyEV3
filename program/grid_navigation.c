@@ -19,10 +19,12 @@
 #define R 4
 
 // Color Constants for Traversable and Non-Traversable Tiles
-#define TRAVERSABLE_COLOR_WHITE 6   // White tile is traversable
-#define TRAVERSABLE_COLOR_BROWN 7   // Brown tile is traversable
-#define NON_TRAVERSABLE_COLOR_BLACK 1  // Black tile is not traversable
-#define NON_TRAVERSABLE_COLOR_RED 5    // Red tile is not traversable
+// Define Color Constants for easier swapping
+#define TRAVERSABLE_COLOR_1 6   // Default traversable color 1 (e.g., White)
+#define TRAVERSABLE_COLOR_2 7   // Default traversable color 2 (e.g., Brown)
+#define NON_TRAVERSABLE_COLOR_1 1  // Default non-traversable color 1 (e.g., Black)
+#define NON_TRAVERSABLE_COLOR_2 5    // Default non-traversable color 2 (e.g., Red)
+
 
 
 #define SPEED 100              // mm per second
@@ -116,6 +118,7 @@ void turn_around_180() {
     current_dir = (current_dir + 2) % 4;
 }
 // Move robot forward one tile and update position
+// Move robot forward one tile and update position
 void move_forward_one_tile() {
     move_for_time(SPEED, (TILE_LENGTH * 1000) / SPEED);
     x_pos += dx[current_dir];
@@ -125,10 +128,11 @@ void move_forward_one_tile() {
     int color = get_current_tile_color();
 
     // Mark tile as visited if it's traversable and not an obstacle
-    if (color != NON_TRAVERSABLE_COLOR_BLACK && color != NON_TRAVERSABLE_COLOR_RED) {
+    if (color != NON_TRAVERSABLE_COLOR_1 && color != NON_TRAVERSABLE_COLOR_2) {
         map[y_pos][x_pos] = 1; // Mark as visited (traversable)
     }
 }
+
 
 
 // Move robot backward return length (when hitting obstacle, don't update position)
@@ -208,7 +212,7 @@ void navigation_loop() {
 
         // Step 1: Color detection
         int color = get_current_tile_color();
-        if (color == NON_TRAVERSABLE_COLOR_WHITE || color == NON_TRAVERSABLE_COLOR_RED) { // White or Red = obstacle
+        if (color == NON_TRAVERSABLE_COLOR_1 || color == NON_TRAVERSABLE_COLOR_2) {  // Black or Red = obstacle
             printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
             map[y_pos][x_pos] = 2; // Mark as not traversable
             move_backward_return();
@@ -219,7 +223,7 @@ void navigation_loop() {
         }
 
         // Step 2: Mark tile as visited (white or brown)
-        if (color == TRAVERSABLE_COLOR_WHITE || color == TRAVERSABLE_COLOR_BROWN) {
+        if (color == TRAVERSABLE_COLOR_1 || color == TRAVERSABLE_COLOR_2) {
             map[y_pos][x_pos] = 1; // Mark tile as visited
         }
 
@@ -279,6 +283,7 @@ void navigation_loop() {
     }
     printf("Reached end position (%d,%d).\n", x_pos, y_pos);
 }
+
 
 
 // After navigation, print map with legend
