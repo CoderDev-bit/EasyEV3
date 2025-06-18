@@ -18,6 +18,13 @@
 #define N 4
 #define R 4
 
+// Color Constants for Traversable and Non-Traversable Tiles
+#define TRAVERSABLE_COLOR_WHITE 6   // White tile is traversable
+#define TRAVERSABLE_COLOR_BROWN 7   // Brown tile is traversable
+#define NON_TRAVERSABLE_COLOR_BLACK 1  // Black tile is not traversable
+#define NON_TRAVERSABLE_COLOR_RED 5    // Red tile is not traversable
+
+
 #define SPEED 100              // mm per second
 #define TILE_LENGTH 253       // mm
 #define RETURN_LENGTH 70      // mm
@@ -113,10 +120,13 @@ void move_forward_one_tile() {
     move_for_time(SPEED, (TILE_LENGTH * 1000) / SPEED);
     x_pos += dx[current_dir];
     y_pos += dy[current_dir];
-    // Mark as visited if not an obstacle (don't mark if black/red/white, if that's your rule)
+
+    // Get the current tile's color
     int color = get_current_tile_color();
-    if (color != 5 && color != 6) { // Not red, not white (update as per your "stop" tiles)
-        map[y_pos][x_pos] = 1;
+
+    // Mark tile as visited if it's traversable and not an obstacle
+    if (color != NON_TRAVERSABLE_COLOR_BLACK && color != NON_TRAVERSABLE_COLOR_RED) {
+        map[y_pos][x_pos] = 1; // Mark as visited (traversable)
     }
 }
 
@@ -198,9 +208,9 @@ void navigation_loop() {
 
         // Step 1: Color detection
         int color = get_current_tile_color();
-        if (color == 6 || color == 5) { // Black or Red = obstacle
+        if (color == NON_TRAVERSABLE_COLOR_WHITE || color == NON_TRAVERSABLE_COLOR_RED) { // White or Red = obstacle
             printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
-            map[y_pos][x_pos] = 2;
+            map[y_pos][x_pos] = 2; // Mark as not traversable
             move_backward_return();
             // Backtrack after hitting an obstacle
             turn_around_180();
@@ -209,8 +219,8 @@ void navigation_loop() {
         }
 
         // Step 2: Mark tile as visited (white or brown)
-        if (color == 6 || color == 7) {
-            map[y_pos][x_pos] = 1;
+        if (color == TRAVERSABLE_COLOR_WHITE || color == TRAVERSABLE_COLOR_BROWN) {
+            map[y_pos][x_pos] = 1; // Mark tile as visited
         }
 
         // ----- FIXED first_move block -----
@@ -276,16 +286,24 @@ void print_final_grid() {
     printf("\nFinal Map:\n");
     for (int y = N-1; y >= 0; y--) {
         for (int x = 0; x < R; x++) {
-            if (map[y][x] == 2)
-                printf("■ ");
-            else if (map[y][x] == 1)
-                printf("□ ");
-            else
-                printf("⍰ ");
+            // Print robot's position
+            if (x == x_pos && y == y_pos) {
+                printf("R "); // Robot position
+            }
+            else if (map[y][x] == 2) {
+                printf("N "); // Non-traversable (obstacle)
+            }
+            else if (map[y][x] == 1) {
+                printf("T "); // Traversable (visited)
+            }
+            else {
+                printf("⋅ "); // Unvisited
+            }
         }
         printf("\n");
     }
 }
+
 
 // ========== MAIN ===========
 int main() {
