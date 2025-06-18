@@ -119,6 +119,7 @@ void turn_around_180() {
 }
 // Move robot forward one tile and update position
 // Move robot forward one tile and update position
+// Move robot forward one tile and update position
 void move_forward_one_tile() {
     move_for_time(SPEED, (TILE_LENGTH * 1000) / SPEED);
     x_pos += dx[current_dir];
@@ -127,11 +128,12 @@ void move_forward_one_tile() {
     // Get the current tile's color
     int color = get_current_tile_color();
 
-    // Mark tile as visited if it's traversable and not an obstacle
+    // Mark tile as visited (traversable) unless it's an obstacle (black/red/white)
     if (color != NON_TRAVERSABLE_COLOR_1 && color != NON_TRAVERSABLE_COLOR_2) {
-        map[y_pos][x_pos] = 1; // Mark as visited (traversable)
+        map[y_pos][x_pos] = 1; // Mark the tile as traversable (visited)
     }
 }
+
 
 
 
@@ -140,6 +142,7 @@ void move_backward_return() {
     move_for_time(-SPEED, (RETURN_LENGTH * 1000) / SPEED);
 }
 
+// Set up all sensors and motors, initialize map to zero
 // Set up all sensors and motors, initialize map to zero
 bool initialize_robot() {
     printf("Initializing...\n");
@@ -159,9 +162,10 @@ bool initialize_robot() {
             map[y][x] = 0;
     srand(time(NULL));
     printf("Init done. Starting at (%d,%d) facing %s\n", x_pos, y_pos, dir_to_str(current_dir));
-    map[START_Y][START_X] = 1;
+    map[START_Y][START_X] = 1;  // Mark start position as traversable
     return true;
 }
+
 
 // Returns if a given tile is open (unvisited or white)
 bool is_tile_open(int x, int y) {
@@ -212,15 +216,15 @@ void navigation_loop() {
 
         // Step 1: Color detection
         int color = get_current_tile_color();
-        if (color == NON_TRAVERSABLE_COLOR_1 || color == NON_TRAVERSABLE_COLOR_2) {  // Black or Red = obstacle
-            printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
-            map[y_pos][x_pos] = 2; // Mark as not traversable
-            move_backward_return();
-            // Backtrack after hitting an obstacle
-            turn_around_180();
-            move_forward_one_tile();
-            continue;
-        }
+if (color == NON_TRAVERSABLE_COLOR_1 || color == NON_TRAVERSABLE_COLOR_2) {  // Black or Red = obstacle
+    printf("Obstacle detected at (%d,%d).\n", x_pos, y_pos);
+    map[y_pos][x_pos] = 2; // Mark as not traversable
+    move_backward_return();
+    turn_around_180();
+    move_forward_one_tile();
+    continue;
+}
+
 
         // Step 2: Mark tile as visited (white or brown)
         if (color == TRAVERSABLE_COLOR_1 || color == TRAVERSABLE_COLOR_2) {
