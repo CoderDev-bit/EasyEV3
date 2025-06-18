@@ -72,18 +72,19 @@ void print_map() {
     for (int y = N-1; y >= 0; y--) {
         for (int x = 0; x < R; x++) {
             if (x_pos == x && y_pos == y)
-                printf("R "); // Robot is here
+                printf("R ");
             else if (map[y][x] == 2)
-                printf("■ ");
+                printf("N ");
             else if (map[y][x] == 1)
-                printf("□ ");
+                printf("T ");
             else
-                printf("⍰ ");
+                printf("⋅ ");
         }
         printf("\n");
     }
     printf("\n");
 }
+
 
 // Get tile color using the first color sensor (0=none, 1=black, 5=red, 6=white, 7=brown)
 int get_current_tile_color() {
@@ -188,6 +189,7 @@ int pick_next_direction() {
 }
 
 
+
 void navigation_loop() {
     bool first_move = true;
 
@@ -205,6 +207,7 @@ void navigation_loop() {
             move_forward_one_tile();
             continue;
         }
+
         // Step 2: Mark tile as visited (white or brown)
         if (color == 6 || color == 7) {
             map[y_pos][x_pos] = 1;
@@ -212,26 +215,26 @@ void navigation_loop() {
 
         // ----- FIXED first_move block -----
         if (first_move) {
-    int fx = x_pos + dx[current_dir], fy = y_pos + dy[current_dir];
-    if (in_bounds(fx, fy) && is_tile_open(fx, fy)) {
-        printf("Moving forward to (%d,%d)...\n", fx, fy);
-        move_forward_one_tile();
-    } else {
-        printf("At map edge on first move, not moving forward.\n");
-    }
-    first_move = false;
-    continue;
-}
-
-
+            int fx = x_pos + dx[current_dir], fy = y_pos + dy[current_dir];
+            if (in_bounds(fx, fy) && is_tile_open(fx, fy)) {
+                printf("Moving forward to (%d,%d)...\n", fx, fy);
+                move_forward_one_tile();
+            } else {
+                printf("At map edge on first move, not moving forward.\n");
+            }
+            first_move = false;
+            continue;
+        }
         // ----- END FIX -----
 
         // ---- NEW FORWARD-CHECK LOGIC ----
         int fx = x_pos + dx[current_dir], fy = y_pos + dy[current_dir];
-        if (is_tile_open(fx, fy)) {
+        if (in_bounds(fx, fy) && is_tile_open(fx, fy)) {
             printf("Moving forward to (%d,%d)...\n", fx, fy);
             move_forward_one_tile();
             continue;
+        } else {
+            printf("DEBUG: Forward move blocked by edge at (%d,%d)\n", fx, fy);
         }
 
         // Otherwise, check left/right for alternative routes
@@ -241,18 +244,22 @@ void navigation_loop() {
             turn_around_180();
             move_forward_one_tile();
             continue;
+        } else if (next_turn == 0) {
+            printf("Turning +90° (CCW).\n");
+            turn_left_90();
+        } else if (next_turn == 1) {
+            printf("Turning -90° (CW).\n");
+            turn_right_90();
         }
-        else if (next_turn == 0) {
-    printf("Turning +90° (CCW).\n");
-    turn_left_90();
-} else if (next_turn == 1) {
-    printf("Turning -90° (CW).\n");
-    turn_right_90();
-}
+
         // After turning, move forward one tile
         int nx = x_pos + dx[current_dir], ny = y_pos + dy[current_dir];
-        printf("Moving forward to (%d,%d)...\n", nx, ny);
-        move_forward_one_tile();
+        if (in_bounds(nx, ny) && is_tile_open(nx, ny)) {
+            printf("Moving forward to (%d,%d)...\n", nx, ny);
+            move_forward_one_tile();
+        } else {
+            printf("DEBUG: Forward move blocked by edge at (%d,%d)\n", nx, ny);
+        }
 
         // Safety: Check bounds
         if (!in_bounds(x_pos, y_pos)) {
@@ -262,6 +269,7 @@ void navigation_loop() {
     }
     printf("Reached end position (%d,%d).\n", x_pos, y_pos);
 }
+
 
 // After navigation, print map with legend
 void print_final_grid() {
