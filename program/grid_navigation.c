@@ -20,14 +20,14 @@
 
 // Color Constants for Traversable and Non-Traversable Tiles
 // Define Color Constants for easier swapping
-#define TRAVERSABLE_COLOR_1 1   // Default traversable color 1 (e.g., White)
+#define TRAVERSABLE_COLOR_1 6   // Default traversable color 1 (e.g., White)
 #define TRAVERSABLE_COLOR_2 7   // Default traversable color 2 (e.g., Brown)
-#define NON_TRAVERSABLE_COLOR_1 6  // Default non-traversable color 1 (e.g., Black)
+#define NON_TRAVERSABLE_COLOR_1 1  // Default non-traversable color 1 (e.g., Black)
 #define NON_TRAVERSABLE_COLOR_2 5    // Default non-traversable color 2 (e.g., Red)
 
 
 
-#define SPEED 100              // mm per second
+#define SPEED 200              // mm per second
 #define TILE_LENGTH 253       // mm
 #define RETURN_LENGTH 70      // mm
 
